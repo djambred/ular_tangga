@@ -428,21 +428,23 @@ ports:
 ## 📁 Struktur Project
 
 ```
-ular_tangga/
-├── lib/
-│   ├── main.dart                    # Main app dengan semua screens
-│   └── services/
-│       └── socket_service.dart      # WebSocket client service
-├── server/
-│   ├── index.js                     # Socket.IO server
-│   ├── package.json                 # Node.js dependencies
-│   ├── Dockerfile                   # Docker image config
-│   └── README.md                    # Server documentation
-├── assets/
-│   └── images/
-│       └── logo.png                 # App logo
-├── docker compose.yml               # Docker Compose config
-└── pubspec.yaml                     # Flutter dependencies
+lib/
+├── main.dart ✅
+├── models/
+│   └── player.dart ✅
+├── screens/
+│   ├── splash_screen.dart ✅
+│   ├── auth_screen.dart ✅
+│   ├── instructions_screen.dart ✅
+│   ├── level_selection_screen.dart ✅
+│   ├── mode_selection_screen.dart ✅
+│   ├── game_screen.dart ✅
+│   └── multiplayer/
+│       ├── lobby_screen.dart ✅
+│       └── waiting_room_screen.dart ✅
+└── services/
+    ├── api_service.dart
+    └── socket_service.dart
 ```
 
 ## 🛠️ Tech Stack
@@ -554,7 +556,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 This project is licensed under the MIT License.
 
 ## 👨‍💻 Author
-Jefry Sunupurwa Asri
+# Jefry Sunupurwa Asri
 Dibuat untuk edukasi tentang Tuberkulosis (TBC) di Indonesia.
 
 ## 🙏 Acknowledgments
