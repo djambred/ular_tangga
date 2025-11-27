@@ -4,6 +4,7 @@ import 'dart:async';
 import '../models/player.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
+import '../services/content_service.dart';
 import 'level_selection_screen.dart';
 import 'instructions_screen.dart';
 
@@ -58,58 +59,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   Timer? gameTimer;
   bool isTimeUp = false;
 
-  // Ular - hanya messages (posisi akan random)
-  final List<String> snakeMessages = [
-    'Lupa minum obat TBC, bisa bikin kuman makin kuat!',
-    'Meludah sembarangan, nanti kumannya terbang ke orang lain!',
-    'Batuk tanpa menutup mulut, teman bisa ikut sakit.',
-    'Berhenti minum obat sebelum waktunya, itu berbahaya!',
-    'Percaya mitos aneh kalau TBC tidak bisa sembuh.',
-    'Pinjam-pinjam alat makan dengan pasien TBC aktif.',
-    'Tidak memakai masker di ruangan ramai.',
-    'Membiarkan kamar gelap dan pengap setiap hari.',
-    'Mengabaikan batuk lama dan tidak cerita ke orang tua.',
-    'Tidak mau ikut periksa padahal tinggal serumah dengan pasien TBC.',
-  ];
-
-  // Tangga - hanya messages (posisi akan random)
-  final List<String> ladderMessages = [
-    'Segera periksa kalau batuknya tidak sembuh-sembuh!',
-    'Minum obat TBC tiap hari sampai selesai, biar cepat sembuh!',
-    'Buka jendela rumah supaya udara segar masuk.',
-    'Menutup mulut saat batuk dengan tisu atau siku.',
-    'Ajak keluarga untuk periksa bila ada yang sakit TBC.',
-    'Rajin menjemur kasur biar kuman kabur.',
-    'Membersihkan rumah dari debu setiap hari.',
-    'Pakai masker saat ada yang sedang sakit.',
-    'Mendukung teman atau keluarga yang sedang berobat.',
-    'Suka belajar hal baru tentang kesehatan!',
-  ];
-
-
-  // Fakta edukatif TBC
-  final List<String> tbFacts = [
-    'TBC adalah penyakit yang bisa disembuhkan, asal minum obat teratur.',
-    'Kuman TBC menyebar lewat udara saat orang batuk atau bersin.',
-    'Kalau batuk lebih dari 2 minggu, segera bilang ke orang tua.',
-    'Obat TBC diberikan gratis di Puskesmas.',
-    'Kalau obatnya berhenti diminum, kumannya bisa jadi lebih kuat.',
-    'Sinar matahari bisa membantu membunuh kuman TBC.',
-    'Anak juga bisa kena TBC, apalagi kalau sering dekat pasien TBC.',
-    'Masker membantu mencegah penularan TBC.',
-    'Rumah yang sering dibuka jendelanya lebih sehat.',
-    'TBC bukan penyakit kutukan atau turunan.',
-    'TBC tidak menular lewat pelukan atau jabat tangan.',
-    'Makan makanan bergizi membantu tubuh melawan penyakit.',
-    'Imunisasi BCG melindungi bayi dari TBC berat.',
-    'Kalau ada keluarga sakit TBC, sebaiknya ikut periksa juga.',
-    'Debu dan rumah pengap bisa membuat kuman lebih betah.',
-    'Pasien TBC harus kontrol rutin ke fasilitas kesehatan.',
-    'TBC bisa menyerang paru-paru dan bagian tubuh lain.',
-    'Jangan malu kalau harus periksa kesehatan, itu tanda peduli diri!',
-    'Etika batuk yang benar membantu melindungi orang lain.',
-    'Dengan pengobatan yang tepat, TBC pasti bisa sembuh!',
-  ];
+  // Content service for dynamic messages
+  final ContentService _contentService = ContentService();
+  
+  // Content will be loaded from backend/cache
+  List<String> get snakeMessages => _contentService.snakeMessages;
+  List<String> get ladderMessages => _contentService.ladderMessages;
+  List<String> get tbFacts => _contentService.facts;
 
   // Icon untuk notifikasi positif (tangga)
   final List<IconData> positiveIcons = [
@@ -219,6 +175,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     remainingSeconds = gameDurationSeconds;
     
     _initPlayers();
+    _loadContent();
     _loadBoardConfig();
     _startTimer();
     
@@ -275,6 +232,17 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     players = [
       Player(id: 1, name: 'Pemain', color: Colors.blue),
     ];
+  }
+
+  Future<void> _loadContent() async {
+    try {
+      print('📚 Loading educational content...');
+      await _contentService.loadContent();
+      print('✅ Content loaded: ${snakeMessages.length} snakes, ${ladderMessages.length} ladders, ${tbFacts.length} facts');
+    } catch (e) {
+      print('⚠️ Failed to load content: $e');
+      // Content service will use defaults
+    }
   }
 
   Future<void> _loadBoardConfig() async {

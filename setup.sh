@@ -103,15 +103,24 @@ echo ""
 
 # Step 2: Seed database
 echo -e "${GREEN}Step 2: Seeding database with initial data...${NC}"
-echo "📦 Creating admin user, quizzes, and board configurations..."
+echo "📦 Creating admin user, quizzes, board configurations, content, and app configs..."
 
-# Run seed script
+# Run main seed script (users, quizzes, board configs)
 if docker compose exec -T socket-server node seed.js; then
-    echo "✅ Database seeded successfully"
+    echo "✅ Users, quizzes, and board configs seeded"
 else
     echo "❌ Failed to seed database"
     echo "💡 Check logs: docker compose logs socket-server"
     exit 1
+fi
+
+# Run content seed script (educational content and app configs)
+echo "📚 Seeding educational content and app configurations..."
+if docker compose exec -T socket-server node seed-content.js; then
+    echo "✅ Educational content and app configs seeded"
+else
+    echo "⚠️  Content seeding failed (continuing anyway)"
+    echo "💡 You can run manually: docker compose exec socket-server node seed-content.js"
 fi
 echo ""
 
@@ -168,6 +177,10 @@ echo "      http://10.0.2.2:3000"
 echo ""
 echo "   3. For iOS Simulator/Desktop:"
 echo "      http://localhost:3000 (already default)"
+echo ""
+echo "   4. Access Admin Dashboard:"
+echo "      http://localhost:8080"
+echo "      Then manage content and app configs dynamically!"
 echo ""
 echo "📊 Useful Commands:"
 echo "   - View logs:        docker compose logs -f"

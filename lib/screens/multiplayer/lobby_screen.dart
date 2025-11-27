@@ -17,7 +17,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   final TextEditingController _serverUrlController = TextEditingController();
   final SocketService _socketService = SocketService();
   bool _isConnecting = false;
-  String _serverUrl = 'http://localhost:3000'; // Default server URL
+  String _serverUrl = 'https://apiular.ueu-fasilkom.my.id'; // Production server URL
 
   @override
   void initState() {
@@ -40,21 +40,27 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     print('🔌 Connecting to server: $_serverUrl');
     _socketService.connect(_serverUrl);
     
-    // Wait for connection with longer timeout
-    Future.delayed(const Duration(seconds: 5), () {
+    // Wait for connection with longer timeout (10 seconds for production)
+    Future.delayed(const Duration(seconds: 10), () {
       if (mounted) {
         setState(() => _isConnecting = false);
         if (!_socketService.isConnected) {
+          print('❌ Connection failed after 10 seconds');
           _showErrorDialog(
-            'Gagal terhubung ke server.\n\n'
-            'URL Server: $_serverUrl\n\n'
-            'Tips:\n'
-            '• Pastikan server Docker sudah berjalan (docker compose up -d)\n'
-            '• Android Emulator: gunakan http://10.0.2.2:3000\n'
-            '• iOS Simulator: gunakan http://localhost:3000\n'
-            '• Device fisik: gunakan http://IP_KOMPUTER:3000\n'
-            '• Periksa firewall/antivirus'
+            'Gagal terhubung ke server Socket.IO\n\n'
+            'URL: $_serverUrl\n\n'
+            'Kemungkinan penyebab:\n'
+            '• Server backend tidak berjalan\n'
+            '• Koneksi internet bermasalah\n'
+            '• Firewall memblokir WebSocket\n'
+            '• URL server salah\n\n'
+            'Coba:\n'
+            '1. Pastikan koneksi internet stabil\n'
+            '2. Klik Settings untuk ubah URL server\n'
+            '3. Hubungi admin jika masalah berlanjut'
           );
+        } else {
+          print('✅ Connected successfully!');
         }
       }
     });
@@ -62,7 +68,9 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
 
   void _setupSocketListeners() {
     _socketService.onRoomCreated((data) {
+      print('✅ Room created: ${data['roomCode']}');
       if (mounted) {
+        setState(() => _isConnecting = false);
         final roomCode = data['roomCode'];
         final room = data['room'];
         Navigator.pushReplacement(
@@ -80,7 +88,9 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     });
 
     _socketService.onPlayerJoined((data) {
+      print('✅ Player joined room: ${data['room']['code']}');
       if (mounted) {
+        setState(() => _isConnecting = false);
         final room = data['room'];
         Navigator.pushReplacement(
           context,
@@ -97,8 +107,10 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     });
 
     _socketService.onError((data) {
+      print('❌ Socket error: ${data['message']}');
       if (mounted) {
-        _showErrorDialog(data['message'] ?? 'Terjadi kesalahan');
+        setState(() => _isConnecting = false);
+        _showErrorDialog(data['message'] ?? 'Terjadi kesalahan dari server');
       }
     });
   }
@@ -112,15 +124,26 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     }
 
     if (!_socketService.isConnected) {
-      _showErrorDialog('Tidak terhubung ke server');
+      _showErrorDialog('Tidak terhubung ke server. Silakan tunggu atau coba hubungkan ulang.');
       return;
     }
 
+    print('🎮 Creating room for: $playerName');
+    setState(() => _isConnecting = true);
+    
     _socketService.createRoom(
       playerName: playerName,
       level: widget.selectedLevel,
       maxPlayers: 4,
     );
+    
+    // Timeout jika tidak ada response
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted && _isConnecting) {
+        setState(() => _isConnecting = false);
+        _showErrorDialog('Timeout membuat ruangan. Coba lagi.');
+      }
+    });
   }
 
   void _joinRoom() {
@@ -138,14 +161,25 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     }
 
     if (!_socketService.isConnected) {
-      _showErrorDialog('Tidak terhubung ke server');
+      _showErrorDialog('Tidak terhubung ke server. Silakan tunggu atau coba hubungkan ulang.');
       return;
     }
+    
+    print('🚪 Joining room: $roomCode as $playerName');
+    setState(() => _isConnecting = true);
 
     _socketService.joinRoom(
       roomCode: roomCode,
       playerName: playerName,
     );
+    
+    // Timeout jika tidak ada response
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted && _isConnecting) {
+        setState(() => _isConnecting = false);
+        _showErrorDialog('Timeout bergabung ke ruangan. Periksa kode ruangan atau coba lagi.');
+      }
+    });
   }
 
   void _showErrorDialog(String message) {
@@ -224,9 +258,9 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
+                  _buildPresetButton('Production', 'https://apiular.ueu-fasilkom.my.id'),
                   _buildPresetButton('Localhost', 'http://localhost:3000'),
                   _buildPresetButton('Android Emu', 'http://10.0.2.2:3000'),
-                  _buildPresetButton('LAN (192.168.1.x)', 'http://192.168.1.x:3000'),
                 ],
               ),
               const SizedBox(height: 16),
@@ -256,19 +290,19 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      '• Pastikan Docker berjalan: docker compose ps',
+                      '• Production: gunakan https://apiular.ueu-fasilkom.my.id',
                       style: TextStyle(fontSize: 11, height: 1.5),
                     ),
                     const Text(
-                      '• Android Emulator: gunakan 10.0.2.2',
+                      '• Pastikan koneksi internet stabil',
                       style: TextStyle(fontSize: 11, height: 1.5),
                     ),
                     const Text(
-                      '• iOS Simulator: gunakan localhost',
+                      '• Development: gunakan localhost atau 10.0.2.2',
                       style: TextStyle(fontSize: 11, height: 1.5),
                     ),
                     const Text(
-                      '• Device fisik: gunakan IP komputer Anda',
+                      '• WebSocket harus support di network Anda',
                       style: TextStyle(fontSize: 11, height: 1.5),
                     ),
                     const Text(

@@ -40,6 +40,8 @@
                 <li><a href="#" data-page="overview" class="active">📊 Overview</a></li>
                 <li><a href="#" data-page="users">👥 Manajemen User</a></li>
                 <li><a href="#" data-page="quizzes">📝 Manajemen Quiz</a></li>
+                <li><a href="#" data-page="content">📚 Konten Edukatif</a></li>
+                <li><a href="#" data-page="config">⚙️ Konfigurasi App</a></li>
                 <li><a href="#" data-page="games">🎯 Riwayat Game</a></li>
                 <li><a href="#" data-page="leaderboard">🏆 Leaderboard</a></li>
                 <li><a href="#" id="logoutBtn">🚪 Logout</a></li>
@@ -120,6 +122,37 @@
                 <div id="quizzesTable" class="table-container"></div>
             </div>
 
+            <!-- Content Page -->
+            <div id="contentPage" class="page">
+                <div class="page-header">
+                    <h1>Konten Edukatif</h1>
+                    <button id="addContentBtn" class="btn btn-primary">+ Tambah Konten</button>
+                </div>
+                <div class="tabs">
+                    <button class="tab-btn active" data-type="snake_message">🐍 Pesan Ular</button>
+                    <button class="tab-btn" data-type="ladder_message">🪜 Pesan Tangga</button>
+                    <button class="tab-btn" data-type="fact">💡 Fakta TBC</button>
+                </div>
+                <div id="contentTable" class="table-container"></div>
+            </div>
+
+            <!-- Config Page -->
+            <div id="configPage" class="page">
+                <div class="page-header">
+                    <h1>Konfigurasi Aplikasi</h1>
+                    <button id="addConfigBtn" class="btn btn-primary">+ Tambah Config</button>
+                </div>
+                <div class="tabs">
+                    <button class="tab-btn active" data-category="environment">🌍 Environment</button>
+                    <button class="tab-btn" data-category="api">🔌 API</button>
+                    <button class="tab-btn" data-category="game">🎮 Game</button>
+                    <button class="tab-btn" data-category="feature">✨ Feature</button>
+                    <button class="tab-btn" data-category="ui">🎨 UI</button>
+                    <button class="tab-btn" data-category="other">📦 Other</button>
+                </div>
+                <div id="configTable" class="table-container"></div>
+            </div>
+
             <!-- Games Page -->
             <div id="gamesPage" class="page">
                 <div class="page-header">
@@ -153,6 +186,88 @@
                 <div id="leaderboardTable" class="table-container"></div>
             </div>
         </main>
+    </div>
+
+    <!-- Content Modal -->
+    <div id="contentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="contentModalTitle">Tambah Konten</h2>
+                <span class="close">&times;</span>
+            </div>
+            <form id="contentForm">
+                <input type="hidden" id="contentId">
+                <div class="form-group">
+                    <label>Tipe Konten *</label>
+                    <select id="contentType" required>
+                        <option value="snake_message">Pesan Ular (Perilaku Buruk)</option>
+                        <option value="ladder_message">Pesan Tangga (Perilaku Baik)</option>
+                        <option value="fact">Fakta TBC</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Pesan *</label>
+                    <textarea id="contentMessage" required rows="3" placeholder="Masukkan pesan edukatif"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="contentIsActive" checked> Konten Aktif
+                    </label>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary cancel-btn">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Config Modal -->
+    <div id="configModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="configModalTitle">Tambah Konfigurasi</h2>
+                <span class="close">&times;</span>
+            </div>
+            <form id="configForm">
+                <div class="form-group">
+                    <label>Key *</label>
+                    <input type="text" id="configKey" required placeholder="e.g., api_timeout">
+                    <small>Gunakan lowercase dan underscore</small>
+                </div>
+                <div class="form-group">
+                    <label>Value *</label>
+                    <input type="text" id="configValue" required placeholder="Masukkan nilai konfigurasi">
+                    <small>Bisa berupa text, number, atau boolean (true/false)</small>
+                </div>
+                <div class="form-group">
+                    <label>Deskripsi</label>
+                    <textarea id="configDescription" rows="2" placeholder="Penjelasan singkat tentang config ini"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Kategori *</label>
+                        <select id="configCategory" required>
+                            <option value="environment">🌍 Environment</option>
+                            <option value="api">API</option>
+                            <option value="game">Game</option>
+                            <option value="feature">Feature</option>
+                            <option value="ui">UI</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="configIsPublic" checked> Public (Client dapat akses)
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary cancel-btn">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Quiz Modal -->

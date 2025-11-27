@@ -8,5 +8,7 @@ router.get('/history', authenticate, gameController.getUserGameHistory);
 router.get('/history/all', authenticate, isAdmin, gameController.getAllGameHistory);
 router.get('/statistics', authenticate, isAdmin, gameController.getGameStatistics);
 router.get('/leaderboard', gameController.getLeaderboard);
+router.get('/dashboard', authenticate, gameController.getDashboardStats);
+router.get('/analytics', authenticate, gameController.getGameAnalytics);
 
 module.exports = router;

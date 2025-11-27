@@ -96,12 +96,7 @@ class InstructionsScreen extends StatelessWidget {
                   height: 56,
                   child: ElevatedButton(
                     onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const LevelSelectionScreen(),
-                        ),
-                      );
+                      Navigator.pushReplacementNamed(context, '/auth');
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue.shade600,
@@ -116,7 +111,7 @@ class InstructionsScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'LANJUT',
+                          'MULAI BERMAIN',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,

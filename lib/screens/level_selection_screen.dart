@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
 import 'mode_selection_screen.dart';
 
 class LevelSelectionScreen extends StatefulWidget {
@@ -9,7 +10,56 @@ class LevelSelectionScreen extends StatefulWidget {
 }
 
 class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
+  final ApiService _apiService = ApiService();
   int selectedLevel = 1;
+  int highestLevel = 1; // Highest unlocked level
+  bool _isLoading = true;
+  bool _isGuest = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProgress();
+  }
+
+  Future<void> _loadUserProgress() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final isLoggedIn = await _apiService.isLoggedIn();
+      
+      if (isLoggedIn) {
+        // Load user profile to get highest level
+        final result = await _apiService.getProfile();
+        if (result['success'] && result['data'] != null) {
+          final userData = result['data'];
+          final stats = userData['statistics'] ?? {};
+          setState(() {
+            highestLevel = stats['highestLevel'] ?? 1;
+            selectedLevel = highestLevel;
+            _isGuest = false;
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+      
+      // Guest mode - all levels unlocked
+      setState(() {
+        _isGuest = true;
+        highestLevel = 5; // Guest can access all levels
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading user progress: $e');
+      // On error, assume guest mode
+      setState(() {
+        _isGuest = true;
+        highestLevel = 5;
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +79,28 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
         child: SafeArea(
           child: Column(
             children: [
+              // Back button
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                      onPressed: () {
+                        Navigator.of(context).pushReplacementNamed('/auth');
+                      },
+                    ),
+                    const Text(
+                      'Kembali ke Login',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
               // Header
               Container(
                 width: double.infinity,
@@ -47,15 +119,15 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
                     ),
                   ],
                 ),
-                child: const Column(
+                child: Column(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.casino_rounded,
                       size: 40,
                       color: Colors.white,
                     ),
-                    SizedBox(height: 8),
-                    Text(
+                    const SizedBox(height: 8),
+                    const Text(
                       'PILIH LEVEL',
                       style: TextStyle(
                         fontSize: 20,
@@ -64,10 +136,12 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
                         letterSpacing: 1.5,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
-                      'Pilih berapa kuis yang wajib dijawab dari 10 kuis',
-                      style: TextStyle(
+                      _isGuest
+                          ? 'Mode Guest - Semua level tersedia (tanpa skor)'
+                          : 'Level Tertinggi: $highestLevel - Selesaikan untuk unlock level berikutnya',
+                      style: const TextStyle(
                         fontSize: 12,
                         color: Colors.white70,
                       ),
@@ -79,7 +153,11 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
               
               // Level Grid
               Expanded(
-                child: Container(
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(),
+                      )
+                    : Container(
                   margin: const EdgeInsets.symmetric(horizontal: 12),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -108,15 +186,28 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
                     itemBuilder: (context, index) {
                       final level = index + 1;
                       final isSelected = selectedLevel == level;
+                      final isLocked = !_isGuest && level > highestLevel;
+                      
                       return InkWell(
-                        onTap: () {
-                          setState(() {
-                            selectedLevel = level;
-                          });
-                        },
+                        onTap: isLocked
+                            ? () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Level $level terkunci! Selesaikan level ${level - 1} terlebih dahulu.',
+                                    ),
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              }
+                            : () {
+                                setState(() {
+                                  selectedLevel = level;
+                                });
+                              },
                         child: Container(
                           decoration: BoxDecoration(
-                            gradient: isSelected
+                            gradient: isSelected && !isLocked
                                 ? LinearGradient(
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
@@ -126,7 +217,9 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
                                     ],
                                   )
                                 : null,
-                            color: isSelected ? null : Colors.grey.shade50,
+                            color: isLocked
+                                ? Colors.grey.shade300
+                                : (isSelected ? null : Colors.grey.shade50),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: isSelected
@@ -144,37 +237,64 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
                                   ]
                                 : null,
                           ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          child: Stack(
                             children: [
-                              Icon(
-                                Icons.casino_rounded,
-                                size: 24,
-                                color: isSelected
-                                    ? Colors.white
-                                    : Colors.purple.shade600,
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    isLocked ? Icons.lock : Icons.casino_rounded,
+                                    size: 24,
+                                    color: isLocked
+                                        ? Colors.grey.shade600
+                                        : (isSelected
+                                            ? Colors.white
+                                            : Colors.purple.shade600),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '$level',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: isLocked
+                                          ? Colors.grey.shade600
+                                          : (isSelected
+                                              ? Colors.white
+                                              : Colors.grey.shade800),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    isLocked ? 'Terkunci' : '$level/10',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      color: isLocked
+                                          ? Colors.grey.shade600
+                                          : (isSelected
+                                              ? Colors.white.withOpacity(0.9)
+                                              : Colors.grey.shade600),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '$level',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: isSelected
-                                      ? Colors.white
-                                      : Colors.grey.shade800,
+                              if (level == highestLevel && !_isGuest)
+                                Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.check,
+                                      size: 12,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '$level/10',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  color: isSelected
-                                      ? Colors.white.withOpacity(0.9)
-                                      : Colors.grey.shade600,
-                                ),
-                              ),
                             ],
                           ),
                         ),
@@ -191,16 +311,18 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
                   width: double.infinity,
                   height: 54,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => GameModeSelectionScreen(
-                            selectedLevel: selectedLevel,
-                          ),
-                        ),
-                      );
-                    },
+                    onPressed: (!_isGuest && selectedLevel > highestLevel)
+                        ? null
+                        : () {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => GameModeSelectionScreen(
+                                  selectedLevel: selectedLevel,
+                                ),
+                              ),
+                            );
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green.shade600,
                       foregroundColor: Colors.white,

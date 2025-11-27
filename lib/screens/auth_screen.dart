@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
-import 'instructions_screen.dart';
+import 'main_navigation_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({Key? key}) : super(key: key);
@@ -107,7 +107,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const InstructionsScreen()),
+          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
         );
       }
     } catch (e) {
@@ -291,17 +291,14 @@ class _AuthScreenState extends State<AuthScreen> {
                         ),
                       ),
                       
-                      // Skip button
+                      // Guest mode button
                       TextButton(
                         onPressed: () {
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                              builder: (context) => const InstructionsScreen(),
-                            ),
-                          );
+                          // Guest goes directly to level selection
+                          Navigator.of(context).pushReplacementNamed('/level-selection');
                         },
                         child: Text(
-                          'Lewati (Main sebagai Guest)',
+                          'Main sebagai Guest (tanpa skor)',
                           style: TextStyle(
                             color: Colors.grey.shade600,
                             fontSize: 12,

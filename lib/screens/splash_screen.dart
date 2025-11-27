@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
-import 'auth_screen.dart';
-import 'instructions_screen.dart';
+import 'main_navigation_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -40,24 +40,60 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _animationController.forward();
 
-    // Check login status and navigate after 3 seconds
-    Future.delayed(const Duration(seconds: 3), () async {
+    // Initialize app: load configs and content
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    try {
+      final apiService = ApiService();
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Load app configs from backend
+      print('⚙️ Loading app configurations...');
+      await apiService.applyConfigs();
+      
+      // Check if this is first time launch
+      final isFirstLaunch = prefs.getBool('is_first_launch') ?? true;
+      
+      // Check if user is logged in
+      final isLoggedIn = await apiService.isLoggedIn();
+      
+      // Wait for minimum splash duration
+      await Future.delayed(const Duration(seconds: 3));
+      
       if (mounted) {
-        final apiService = ApiService();
-        final isLoggedIn = await apiService.isLoggedIn();
-        
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => 
-              isLoggedIn ? const InstructionsScreen() : const AuthScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 800),
-          ),
-        );
+        if (isFirstLaunch) {
+          // First time user -> Show instructions
+          await prefs.setBool('is_first_launch', false);
+          Navigator.of(context).pushReplacementNamed('/instructions');
+        } else if (isLoggedIn) {
+          // Registered user -> Show bottom navigation
+          Navigator.of(context).pushReplacement(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => 
+                const MainNavigationScreen(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 800),
+            ),
+          );
+        } else {
+          // Guest user -> Go directly to auth screen
+          Navigator.of(context).pushReplacementNamed('/auth');
+        }
       }
-    });
+    } catch (e) {
+      print('⚠️ Initialization error: $e');
+      // Continue anyway with defaults
+      await Future.delayed(const Duration(seconds: 3));
+      
+      if (mounted) {
+        // On error, go to auth screen
+        Navigator.of(context).pushReplacementNamed('/auth');
+      }
+    }
   }
 
   @override

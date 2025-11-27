@@ -12,6 +12,8 @@ const quizRoutes = require('./routes/quiz');
 const gameRoutes = require('./routes/game');
 const userRoutes = require('./routes/user');
 const boardRoutes = require('./routes/board');
+const contentRoutes = require('./routes/content');
+const configRoutes = require('./routes/config');
 
 // Initialize Express
 const app = express();
@@ -36,6 +38,8 @@ app.use('/api/quiz', quizRoutes);
 app.use('/api/game', gameRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/board', boardRoutes);
+app.use('/api/content', contentRoutes);
+app.use('/api/config', configRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

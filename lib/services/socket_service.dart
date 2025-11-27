@@ -13,19 +13,28 @@ class SocketService {
   // Connect to server
   void connect(String serverUrl) {
     if (_socket != null && _isConnected) {
+      print('⚠️ Already connected or connecting');
       return;
     }
 
     print('🔌 Attempting to connect to: $serverUrl');
 
+    // Determine if using HTTPS
+    final isSecure = serverUrl.startsWith('https');
+    final transport = isSecure ? ['polling', 'websocket'] : ['websocket', 'polling'];
+    
+    print('🔧 Using transports: $transport (secure: $isSecure)');
+
     _socket = IO.io(serverUrl, IO.OptionBuilder()
-      .setTransports(['websocket', 'polling']) // Try websocket first, fallback to polling
+      .setTransports(transport) // polling first for HTTPS, then upgrade to websocket
       .disableAutoConnect()
       .enableReconnection()
       .setReconnectionAttempts(5)
       .setReconnectionDelay(1000)
-      .setTimeout(10000)
+      .setTimeout(15000)
       .enableForceNew()
+      .setPath('/socket.io/') // Explicit path
+      .setExtraHeaders({'Accept': '*/*'}) // Additional headers for HTTPS
       .build()
     );
 
@@ -70,11 +79,17 @@ class SocketService {
     required int level,
     int maxPlayers = 4,
   }) {
+    print('🎮 Creating room: player=$playerName, level=$level, maxPlayers=$maxPlayers');
+    if (_socket == null || !_isConnected) {
+      print('❌ Cannot create room: socket not connected');
+      return;
+    }
     _socket?.emit('create_room', {
       'playerName': playerName,
       'level': level,
       'maxPlayers': maxPlayers,
     });
+    print('✅ Create room event emitted');
   }
 
   // Join an existing room
@@ -82,10 +97,16 @@ class SocketService {
     required String roomCode,
     required String playerName,
   }) {
+    print('🚪 Joining room: code=$roomCode, player=$playerName');
+    if (_socket == null || !_isConnected) {
+      print('❌ Cannot join room: socket not connected');
+      return;
+    }
     _socket?.emit('join_room', {
       'roomCode': roomCode,
       'playerName': playerName,
     });
+    print('✅ Join room event emitted');
   }
 
   // Toggle player ready status

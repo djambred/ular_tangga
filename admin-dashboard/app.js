@@ -47,6 +47,22 @@ function setupEventListeners() {
     // Quiz form
     document.getElementById('quizForm').addEventListener('submit', handleQuizSubmit);
     
+    // Add content button
+    document.getElementById('addContentBtn').addEventListener('click', () => {
+        openContentModal();
+    });
+    
+    // Content form
+    document.getElementById('contentForm').addEventListener('submit', handleContentSubmit);
+    
+    // Add config button
+    document.getElementById('addConfigBtn').addEventListener('click', () => {
+        openConfigModal();
+    });
+    
+    // Config form
+    document.getElementById('configForm').addEventListener('submit', handleConfigSubmit);
+    
     // Modal close buttons
     document.querySelectorAll('.close, .cancel-btn').forEach(btn => {
         btn.addEventListener('click', closeModals);
@@ -55,10 +71,21 @@ function setupEventListeners() {
     // Leaderboard tabs
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const sortBy = e.target.getAttribute('data-sort');
-            loadLeaderboard(sortBy);
+            const target = e.target;
+            const sortBy = target.getAttribute('data-sort');
+            const type = target.getAttribute('data-type');
+            const category = target.getAttribute('data-category');
+            
+            if (sortBy) {
+                loadLeaderboard(sortBy);
+            } else if (type) {
+                loadContent(type);
+            } else if (category) {
+                loadConfigs(category);
+            }
+            
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
+            target.classList.add('active');
         });
     });
     
@@ -129,6 +156,8 @@ function navigateToPage(pageName) {
         case 'overview': loadOverview(); break;
         case 'users': loadUsers(); break;
         case 'quizzes': loadQuizzes(); break;
+        case 'content': loadContent('snake_message'); break;
+        case 'config': loadConfigs('environment'); break;
         case 'games': loadGames(); break;
         case 'leaderboard': loadLeaderboard(); break;
     }
@@ -663,6 +692,300 @@ function debounce(func, wait) {
         timeout = setTimeout(later, wait);
     };
 }
+
+// ========================================
+// CONTENT MANAGEMENT
+// ========================================
+
+let currentContentType = 'snake_message';
+
+async function loadContent(type = 'snake_message') {
+    currentContentType = type;
+    
+    try {
+        const data = await apiGet(`/content?type=${type}`);
+        
+        const container = document.getElementById('contentTable');
+        if (!data.data || data.data.length === 0) {
+            container.innerHTML = '<p class="no-data">Belum ada konten</p>';
+            return;
+        }
+        
+        const typeLabels = {
+            'snake_message': 'Pesan Ular',
+            'ladder_message': 'Pesan Tangga',
+            'fact': 'Fakta TBC'
+        };
+        
+        container.innerHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Pesan</th>
+                        <th>Status</th>
+                        <th>Dibuat</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.data.map((content, index) => `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td style="max-width: 400px;">${content.message}</td>
+                            <td>
+                                <span class="badge badge-${content.isActive ? 'success' : 'secondary'}">
+                                    ${content.isActive ? 'Aktif' : 'Nonaktif'}
+                                </span>
+                            </td>
+                            <td>${new Date(content.createdAt).toLocaleDateString('id-ID')}</td>
+                            <td>
+                                <button class="btn-small btn-primary" onclick="editContent('${content._id}')">Edit</button>
+                                <button class="btn-small btn-danger" onclick="deleteContent('${content._id}')">Hapus</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (error) {
+        document.getElementById('contentTable').innerHTML = '<p class="error-message">Gagal memuat konten</p>';
+    }
+}
+
+function openContentModal(contentId = null) {
+    const modal = document.getElementById('contentModal');
+    const form = document.getElementById('contentForm');
+    
+    form.reset();
+    document.getElementById('contentId').value = '';
+    document.getElementById('contentModalTitle').textContent = 'Tambah Konten';
+    document.getElementById('contentType').value = currentContentType;
+    
+    if (contentId) {
+        document.getElementById('contentModalTitle').textContent = 'Edit Konten';
+        document.getElementById('contentId').value = contentId;
+        loadContentData(contentId);
+    }
+    
+    modal.classList.add('active');
+}
+
+async function loadContentData(contentId) {
+    try {
+        const data = await apiGet(`/content?type=${currentContentType}`);
+        const content = data.data.find(c => c._id === contentId);
+        
+        if (content) {
+            document.getElementById('contentType').value = content.type;
+            document.getElementById('contentMessage').value = content.message;
+            document.getElementById('contentIsActive').checked = content.isActive;
+        }
+    } catch (error) {
+        showToast('Gagal memuat data konten', 'error');
+    }
+}
+
+async function handleContentSubmit(e) {
+    e.preventDefault();
+    
+    const contentId = document.getElementById('contentId').value;
+    const formData = {
+        type: document.getElementById('contentType').value,
+        message: document.getElementById('contentMessage').value,
+        isActive: document.getElementById('contentIsActive').checked
+    };
+    
+    try {
+        if (contentId) {
+            await apiPut(`/content/${contentId}`, formData);
+            showToast('Konten berhasil diupdate');
+        } else {
+            await apiPost('/content', formData);
+            showToast('Konten berhasil ditambahkan');
+        }
+        
+        closeModals();
+        loadContent(currentContentType);
+    } catch (error) {
+        showToast(error.message || 'Gagal menyimpan konten', 'error');
+    }
+}
+
+async function deleteContent(contentId) {
+    if (!confirm('Yakin ingin menghapus konten ini?')) return;
+    
+    try {
+        await apiDelete(`/content/${contentId}`);
+        showToast('Konten berhasil dihapus');
+        loadContent(currentContentType);
+    } catch (error) {
+        showToast('Gagal menghapus konten', 'error');
+    }
+}
+
+window.editContent = (contentId) => openContentModal(contentId);
+window.deleteContent = deleteContent;
+
+// ========================================
+// CONFIG MANAGEMENT
+// ========================================
+
+let currentConfigCategory = 'api';
+
+async function loadConfigs(category = 'api') {
+    currentConfigCategory = category;
+    
+    try {
+        const data = await apiGet(`/config?category=${category}`);
+        
+        const container = document.getElementById('configTable');
+        if (!data.data || data.data.length === 0) {
+            container.innerHTML = '<p class="no-data">Belum ada konfigurasi</p>';
+            return;
+        }
+        
+        container.innerHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Key</th>
+                        <th>Value</th>
+                        <th>Deskripsi</th>
+                        <th>Public</th>
+                        <th>Diupdate</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.data.map(config => {
+                        let displayValue = config.value;
+                        if (typeof config.value === 'boolean') {
+                            displayValue = config.value ? '✓ true' : '✗ false';
+                        } else if (typeof config.value === 'object') {
+                            displayValue = JSON.stringify(config.value);
+                        }
+                        
+                        return `
+                            <tr>
+                                <td><code>${config.key}</code></td>
+                                <td><strong>${displayValue}</strong></td>
+                                <td style="max-width: 300px;">${config.description || '-'}</td>
+                                <td>
+                                    <span class="badge badge-${config.isPublic ? 'success' : 'warning'}">
+                                        ${config.isPublic ? 'Yes' : 'No'}
+                                    </span>
+                                </td>
+                                <td>${new Date(config.updatedAt).toLocaleDateString('id-ID')}</td>
+                                <td>
+                                    <button class="btn-small btn-primary" onclick="editConfig('${config.key}')">Edit</button>
+                                    <button class="btn-small btn-danger" onclick="deleteConfig('${config.key}')">Hapus</button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (error) {
+        document.getElementById('configTable').innerHTML = '<p class="error-message">Gagal memuat konfigurasi</p>';
+    }
+}
+
+function openConfigModal(configKey = null) {
+    const modal = document.getElementById('configModal');
+    const form = document.getElementById('configForm');
+    
+    form.reset();
+    document.getElementById('configModalTitle').textContent = 'Tambah Konfigurasi';
+    document.getElementById('configKey').disabled = false;
+    document.getElementById('configCategory').value = currentConfigCategory;
+    
+    if (configKey) {
+        document.getElementById('configModalTitle').textContent = 'Edit Konfigurasi';
+        document.getElementById('configKey').disabled = true;
+        loadConfigData(configKey);
+    }
+    
+    modal.classList.add('active');
+}
+
+async function loadConfigData(configKey) {
+    try {
+        const data = await apiGet(`/config/${configKey}`);
+        const config = data.data;
+        
+        if (config) {
+            document.getElementById('configKey').value = config.key;
+            
+            let valueStr = config.value;
+            if (typeof config.value === 'boolean') {
+                valueStr = config.value.toString();
+            } else if (typeof config.value === 'object') {
+                valueStr = JSON.stringify(config.value);
+            }
+            
+            document.getElementById('configValue').value = valueStr;
+            document.getElementById('configDescription').value = config.description || '';
+            document.getElementById('configCategory').value = config.category;
+            document.getElementById('configIsPublic').checked = config.isPublic;
+        }
+    } catch (error) {
+        showToast('Gagal memuat data konfigurasi', 'error');
+    }
+}
+
+async function handleConfigSubmit(e) {
+    e.preventDefault();
+    
+    const key = document.getElementById('configKey').value;
+    let value = document.getElementById('configValue').value;
+    
+    // Try to parse value as JSON, number, or boolean
+    if (value === 'true' || value === 'false') {
+        value = value === 'true';
+    } else if (!isNaN(value) && value !== '') {
+        value = Number(value);
+    } else {
+        try {
+            value = JSON.parse(value);
+        } catch (e) {
+            // Keep as string if not valid JSON
+        }
+    }
+    
+    const formData = {
+        key,
+        value,
+        description: document.getElementById('configDescription').value,
+        category: document.getElementById('configCategory').value,
+        isPublic: document.getElementById('configIsPublic').checked
+    };
+    
+    try {
+        await apiPost('/config', formData);
+        showToast('Konfigurasi berhasil disimpan');
+        closeModals();
+        loadConfigs(currentConfigCategory);
+    } catch (error) {
+        showToast(error.message || 'Gagal menyimpan konfigurasi', 'error');
+    }
+}
+
+async function deleteConfig(configKey) {
+    if (!confirm('Yakin ingin menghapus konfigurasi ini?\nPerubahan ini akan mempengaruhi aplikasi client.')) return;
+    
+    try {
+        await apiDelete(`/config/${configKey}`);
+        showToast('Konfigurasi berhasil dihapus');
+        loadConfigs(currentConfigCategory);
+    } catch (error) {
+        showToast('Gagal menghapus konfigurasi', 'error');
+    }
+}
+
+window.editConfig = (configKey) => openConfigModal(configKey);
+window.deleteConfig = deleteConfig;
 
 // Make functions available globally
 window.editQuiz = editQuiz;
