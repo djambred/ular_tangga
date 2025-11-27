@@ -43,7 +43,9 @@ const userSchema = new mongoose.Schema({
     totalQuizzesAnswered: { type: Number, default: 0 },
     totalQuizzesCorrect: { type: Number, default: 0 },
     totalPlayTime: { type: Number, default: 0 }, // in seconds
-    highestLevel: { type: Number, default: 0 }
+    highestLevel: { type: Number, default: 1 }, // Start from level 1
+    totalScore: { type: Number, default: 0 }, // Accumulated total score
+    highestScore: { type: Number, default: 0 } // Highest score in a single game
   },
   createdAt: {
     type: Date,

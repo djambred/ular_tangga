@@ -3,21 +3,22 @@ import 'dart:math';
 import 'dart:async';
 import '../models/player.dart';
 import '../services/api_service.dart';
-import '../services/socket_service.dart';
 import '../services/content_service.dart';
-import 'level_selection_screen.dart';
-import 'instructions_screen.dart';
 
 class GameScreen extends StatefulWidget {
   final int requiredQuizzes;
   final bool isSinglePlayer;
   final Map<String, dynamic>? roomData;
+  final int level;
+  final String mode;
   
   const GameScreen({
     Key? key, 
     this.requiredQuizzes = 5,
     this.isSinglePlayer = true,
     this.roomData,
+    this.level = 1,
+    this.mode = 'single',
   }) : super(key: key);
 
   @override
@@ -298,7 +299,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   Future<void> _saveGameHistory({required bool isWinner}) async {
     try {
-      final endTime = DateTime.now();
       final playTime = gameDurationSeconds - remainingSeconds;
       
       // Get current player position
@@ -1400,12 +1400,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   height: 56,
                   child: ElevatedButton(
                     onPressed: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(
-                          builder: (context) => const InstructionsScreen(),
-                        ),
-                      );
+                      Navigator.of(context).pop(); // Close dialog
+                      Navigator.of(context).pop(); // Return to previous screen
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red.shade600,
@@ -1702,13 +1698,27 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   ),
                 ),
                 const SizedBox(height: 24),
+                // Lanjut ke level berikutnya
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.of(context).pop();
-                      _resetGame();
+                      // Lanjut ke level berikutnya jika belum maksimal
+                      if (widget.level < 10) {
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (context) => GameScreen(
+                              level: widget.level + 1,
+                              mode: widget.mode,
+                            ),
+                          ),
+                        );
+                      } else {
+                        // Sudah level maksimal, kembali ke home
+                        Navigator.of(context).pop();
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green.shade600,
@@ -1718,13 +1728,47 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                       ),
                       elevation: 8,
                     ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.arrow_forward_rounded, size: 24),
+                        const SizedBox(width: 8),
+                        Text(
+                          widget.level < 10 ? 'LANJUT LEVEL ${widget.level + 1}' : 'SELESAI',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Keluar ke home
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).pop(); // Kembali ke home/level selection
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.grey.shade700,
+                      side: BorderSide(color: Colors.grey.shade400, width: 2),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.refresh_rounded, size: 24),
+                        Icon(Icons.home_rounded, size: 24),
                         SizedBox(width: 8),
                         Text(
-                          'MAIN LAGI',
+                          'KEMBALI KE HOME',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -1837,13 +1881,27 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   ),
                 ),
                 const SizedBox(height: 24),
+                // Lanjut ke level berikutnya
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.of(context).pop();
-                      _resetGame();
+                      // Lanjut ke level berikutnya jika belum maksimal
+                      if (widget.level < 10) {
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (context) => GameScreen(
+                              level: widget.level + 1,
+                              mode: widget.mode,
+                            ),
+                          ),
+                        );
+                      } else {
+                        // Sudah level maksimal, kembali ke home
+                        Navigator.of(context).pop();
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green.shade600,
@@ -1853,13 +1911,47 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                       ),
                       elevation: 8,
                     ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.arrow_forward_rounded, size: 24),
+                        const SizedBox(width: 8),
+                        Text(
+                          widget.level < 10 ? 'LANJUT LEVEL ${widget.level + 1}' : 'SELESAI',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Keluar ke home
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).pop(); // Kembali ke home/level selection
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.grey.shade700,
+                      side: BorderSide(color: Colors.grey.shade400, width: 2),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.refresh_rounded, size: 24),
+                        Icon(Icons.home_rounded, size: 24),
                         SizedBox(width: 8),
                         Text(
-                          'MAIN LAGI',
+                          'KEMBALI KE HOME',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

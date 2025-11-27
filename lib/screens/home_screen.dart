@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import 'auth_screen.dart';
 import 'dart:math';
 
 class HomeScreen extends StatefulWidget {
@@ -90,6 +91,48 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
+  Future<void> _handleLogout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: const Row(
+          children: [
+            Icon(Icons.logout_rounded, color: Colors.red),
+            SizedBox(width: 10),
+            Text('Logout'),
+          ],
+        ),
+        content: const Text('Yakin ingin keluar dari akun ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Batal', style: TextStyle(color: Colors.grey.shade600)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _apiService.logout();
+      
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const AuthScreen()),
+          (route) => false,
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -115,6 +158,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Logout Button (top right)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          IconButton(
+                            onPressed: _handleLogout,
+                            icon: const Icon(Icons.logout_rounded),
+                            color: Colors.white,
+                            tooltip: 'Logout',
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.white.withOpacity(0.2),
+                              padding: const EdgeInsets.all(12),
+                            ),
+                          ),
+                        ],
+                      ),
+                      
                       // Welcome Section
                       _buildWelcomeSection(),
                       
@@ -224,16 +284,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           color: Colors.amber,
         ),
         _buildStatCard(
-          icon: Icons.gamepad,
-          title: 'Total Game',
-          value: '${stats['totalGames'] ?? 0}',
-          color: Colors.green,
+          icon: Icons.stars,
+          title: 'Total Skor',
+          value: '${stats['totalScore'] ?? 0}',
+          color: Colors.yellow.shade700,
         ),
         _buildStatCard(
-          icon: Icons.quiz,
-          title: 'Kuis Benar',
-          value: '${stats['totalQuizzesCorrect'] ?? 0}',
-          color: Colors.blue,
+          icon: Icons.emoji_events_outlined,
+          title: 'Skor Tertinggi',
+          value: '${stats['highestScore'] ?? 0}',
+          color: Colors.orange,
         ),
         _buildStatCard(
           icon: Icons.trending_up,

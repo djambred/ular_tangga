@@ -400,6 +400,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const Divider(height: 25),
                 _buildStatRow(
+                  icon: Icons.stars,
+                  label: 'Total Skor',
+                  value: '${stats['totalScore'] ?? 0}',
+                  color: Colors.yellow.shade700,
+                ),
+                const Divider(height: 25),
+                _buildStatRow(
+                  icon: Icons.emoji_events_outlined,
+                  label: 'Skor Tertinggi',
+                  value: '${stats['highestScore'] ?? 0}',
+                  color: Colors.amber.shade700,
+                ),
+                const Divider(height: 25),
+                _buildStatRow(
                   icon: Icons.access_time,
                   label: 'Total Waktu Bermain',
                   value: _formatPlayTime(stats['totalPlayTime'] ?? 0),

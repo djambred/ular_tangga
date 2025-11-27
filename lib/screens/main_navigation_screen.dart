@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../services/api_service.dart';
 import 'home_screen.dart';
 import 'info_screen.dart';
@@ -16,7 +15,6 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
-  final ApiService _apiService = ApiService();
   
   late final List<Widget> _screens;
   

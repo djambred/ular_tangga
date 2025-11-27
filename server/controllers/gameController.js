@@ -9,6 +9,8 @@ exports.saveGameHistory = async (req, res) => {
     // Update user statistics
     for (const player of req.body.players) {
       if (player.userId) {
+        const playerScore = player.score || 0;
+        
         const updateData = {
           $inc: {
             'statistics.totalGames': 1,
@@ -16,17 +18,28 @@ exports.saveGameHistory = async (req, res) => {
             'statistics.totalLosses': !player.isWinner ? 1 : 0,
             'statistics.totalQuizzesAnswered': player.quizzesAnswered,
             'statistics.totalQuizzesCorrect': player.quizzesCorrect,
-            'statistics.totalPlayTime': player.playTime
+            'statistics.totalPlayTime': player.playTime,
+            'statistics.totalScore': playerScore // Accumulate total score
           }
         };
+        
+        // Update highest score and unlock next level
+        const maxUpdate = {};
+        
+        // Update highest score if current score is higher
+        if (playerScore > 0) {
+          maxUpdate['statistics.highestScore'] = playerScore;
+        }
         
         // Only unlock next level if player wins
         if (player.isWinner) {
           // Unlock next level (current level + 1)
           const nextLevel = req.body.level + 1;
-          updateData.$max = {
-            'statistics.highestLevel': nextLevel
-          };
+          maxUpdate['statistics.highestLevel'] = nextLevel;
+        }
+        
+        if (Object.keys(maxUpdate).length > 0) {
+          updateData.$max = maxUpdate;
         }
         
         await User.findByIdAndUpdate(player.userId, updateData);
@@ -161,11 +174,13 @@ exports.getGameStatistics = async (req, res) => {
 
 exports.getLeaderboard = async (req, res) => {
   try {
-    const { limit = 10, sortBy = 'wins' } = req.query;
+    const { limit = 10, sortBy = 'score' } = req.query;
 
-    let sortField = 'statistics.totalWins';
+    let sortField = 'statistics.totalScore';
+    if (sortBy === 'wins') sortField = 'statistics.totalWins';
     if (sortBy === 'games') sortField = 'statistics.totalGames';
     if (sortBy === 'quizzes') sortField = 'statistics.totalQuizzesCorrect';
+    if (sortBy === 'highestScore') sortField = 'statistics.highestScore';
 
     const leaderboard = await User.find({ role: 'player', isActive: true })
       .select('username fullName avatar statistics')
@@ -174,7 +189,8 @@ exports.getLeaderboard = async (req, res) => {
 
     res.json({
       success: true,
-      data: leaderboard
+      data: leaderboard,
+      sortBy: sortBy
     });
   } catch (error) {
     console.error('Get leaderboard error:', error);

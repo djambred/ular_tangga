@@ -82,7 +82,7 @@ System ini menggunakan 3 Docker containers:
 git clone <repository-url>
 cd ular_tangga
 
-# Run automated setup (starts Docker, seeds database, installs Flutter deps)
+# Run automated setup (starts Docker, resets DB, seeds everything, installs deps)
 chmod +x setup.sh
 ./setup.sh
 ```
@@ -91,8 +91,11 @@ chmod +x setup.sh
 1. Setup environment variables (.env)
 2. Start semua Docker services (MongoDB, Backend, Admin Dashboard)
 3. Menunggu services siap
-4. Seed database dengan data awal
-5. Install Flutter dependencies
+4. **Reset database (clean slate)**
+5. Seed database dengan semua data awal (users, quizzes, content, configs, environment)
+6. Install Flutter dependencies
+
+⚠️ **IMPORTANT:** Setup akan reset database setiap kali dijalankan!
 
 **Setelah setup selesai, langsung jalankan:**
 ```bash
@@ -555,8 +558,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 This project is licensed under the MIT License.
 
-## 👨‍💻 Author
-#### Jefry Sunupurwa Asri
+## 👨‍💻 Author Jefry Sunupurwa Asri
+
 Dibuat untuk edukasi tentang Tuberkulosis (TBC) di Indonesia.
 
 ## 🙏 Acknowledgments

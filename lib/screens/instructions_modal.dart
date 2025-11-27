@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../services/api_service.dart';
 
 class InstructionsModal extends StatelessWidget {
   const InstructionsModal({Key? key}) : super(key: key);

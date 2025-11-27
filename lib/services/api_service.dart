@@ -9,7 +9,8 @@ class ApiService {
 
   // Production URL - Change to your domain
   // Use localhost for development/testing
-  String _baseUrl = 'http://localhost:3000/api';
+  //String _baseUrl = 'http://localhost:3000/api';
+  String _baseUrl = 'https://apiular.ueu-fasilkom.my.id/api';
   String? _token;
 
   void setBaseUrl(String url) {

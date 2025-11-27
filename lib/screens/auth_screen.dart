@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'main_navigation_screen.dart';
+import 'game_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({Key? key}) : super(key: key);
@@ -294,11 +295,18 @@ class _AuthScreenState extends State<AuthScreen> {
                       // Guest mode button
                       TextButton(
                         onPressed: () {
-                          // Guest goes directly to level selection
-                          Navigator.of(context).pushReplacementNamed('/level-selection');
+                          // Guest goes directly to game level 1
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (context) => const GameScreen(
+                                level: 1,
+                                mode: 'single',
+                              ),
+                            ),
+                          );
                         },
                         child: Text(
-                          'Main sebagai Guest (tanpa skor)',
+                          'Main sebagai Guest (Level 1, tanpa skor)',
                           style: TextStyle(
                             color: Colors.grey.shade600,
                             fontSize: 12,

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'level_selection_screen.dart';
 
 class InstructionsScreen extends StatelessWidget {
   const InstructionsScreen({Key? key}) : super(key: key);

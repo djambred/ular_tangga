@@ -13,13 +13,36 @@ chmod +x setup.sh
 - Setup environment (.env)
 - Start Docker services (MongoDB, Backend, Admin Dashboard)
 - Wait for services to be ready
-- Seed database with initial data
+- **Reset database (clean slate)**
+- Seed database with all initial data
 - Install Flutter dependencies
+
+**⚠️ WARNING:** `./setup.sh` akan otomatis reset database setiap kali dijalankan!
+
+### Reset & Reseed Database
+```bash
+# Reset database and reseed all data
+chmod +x reset-seed.sh
+./reset-seed.sh
+
+# OR: Manual reset and reseed
+docker compose exec socket-server node reset-database.js
+docker compose exec socket-server node seed.js
+docker compose exec socket-server node seed-content.js
+docker compose exec socket-server node seed-environment.js
+```
+
+**⚠️ WARNING:** Reset akan menghapus SEMUA data termasuk:
+- Semua users (kecuali yang di-recreate oleh seed)
+- Game histories
+- Custom configurations
 
 ### Manual Setup (Alternative)
 ```bash
 docker compose up -d --build
 docker compose exec socket-server node seed.js
+docker compose exec socket-server node seed-content.js
+docker compose exec socket-server node seed-environment.js
 flutter pub get
 ```
 
@@ -140,13 +163,50 @@ show collections
 db.users.countDocuments()
 db.quizzes.countDocuments()
 db.boardconfigs.countDocuments()
+db.contents.countDocuments()
+db.appconfigs.countDocuments()
 
 // Find documents
 db.users.find().pretty()
 db.boardconfigs.findOne({ level: 1 })
+db.appconfigs.find({ category: 'environment' }).pretty()
 
 // Exit
 exit
+```
+
+---
+
+## Database Management
+
+### Seed Scripts
+```bash
+# Reset database (⚠️ DELETES ALL DATA)
+docker compose exec socket-server node reset-database.js
+
+# Seed base data (users, quizzes, board configs)
+docker compose exec socket-server node seed.js
+
+# Seed educational content (40 items) + app configs (14 items)
+docker compose exec socket-server node seed-content.js
+
+# Seed environment configurations (12 items)
+docker compose exec socket-server node seed-environment.js
+
+# Fix user levels (0 → 1)
+docker compose exec socket-server node fix-levels.js
+```
+
+### Complete Reset & Reseed
+```bash
+# Using script (recommended)
+./reset-seed.sh
+
+# OR manual
+docker compose exec socket-server node reset-database.js
+docker compose exec socket-server node seed.js
+docker compose exec socket-server node seed-content.js
+docker compose exec socket-server node seed-environment.js
 ```
 
 ---

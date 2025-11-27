@@ -12,6 +12,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
   final ApiService _apiService = ApiService();
   late TabController _tabController;
   
+  List<dynamic> _leaderboardByScore = [];
   List<dynamic> _leaderboardByWins = [];
   List<dynamic> _leaderboardByGames = [];
   List<dynamic> _leaderboardByQuizzes = [];
@@ -22,7 +23,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _loadLeaderboard();
   }
 
@@ -40,15 +41,17 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
 
     try {
       final results = await Future.wait([
+        _apiService.getLeaderboard(sortBy: 'score', limit: 50),
         _apiService.getLeaderboard(sortBy: 'wins', limit: 50),
         _apiService.getLeaderboard(sortBy: 'games', limit: 50),
         _apiService.getLeaderboard(sortBy: 'quizzes', limit: 50),
       ]);
 
       setState(() {
-        _leaderboardByWins = results[0];
-        _leaderboardByGames = results[1];
-        _leaderboardByQuizzes = results[2];
+        _leaderboardByScore = results[0];
+        _leaderboardByWins = results[1];
+        _leaderboardByGames = results[2];
+        _leaderboardByQuizzes = results[3];
         _isLoading = false;
       });
     } catch (e) {
@@ -139,6 +142,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                   ),
                   tabs: const [
                     Tab(
+                      icon: Icon(Icons.stars, size: 20),
+                      text: 'Skor',
+                    ),
+                    Tab(
                       icon: Icon(Icons.emoji_events, size: 20),
                       text: 'Menang',
                     ),
@@ -191,6 +198,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                         : TabBarView(
                             controller: _tabController,
                             children: [
+                              _buildLeaderboardList(_leaderboardByScore, 'score'),
                               _buildLeaderboardList(_leaderboardByWins, 'wins'),
                               _buildLeaderboardList(_leaderboardByGames, 'games'),
                               _buildLeaderboardList(_leaderboardByQuizzes, 'quizzes'),
@@ -274,6 +282,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
 
     String getValue() {
       switch (sortBy) {
+        case 'score':
+          return '${stats['totalScore'] ?? 0} poin';
         case 'wins':
           return '${stats['totalWins'] ?? 0} menang';
         case 'games':

@@ -7,21 +7,25 @@
 # 1. Setup environment variables (.env)
 # 2. Start Docker services (MongoDB, Backend, Admin Dashboard)
 # 3. Wait for services to be ready
-# 4. Seed database with initial data
-# 5. Install Flutter dependencies
+# 4. Reset database (clean slate)
+# 5. Seed database with initial data
+# 6. Install Flutter dependencies
 #
 # Usage: ./setup.sh
 
 set -e
 
-echo "🎲 Game Ular Tangga Edukasi TBC - Automated Setup"
-echo "===================================================="
-echo ""
-
 # Colors
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m' # No Color
+
+echo "🎲 Game Ular Tangga Edukasi TBC - Automated Setup"
+echo "===================================================="
+echo ""
+echo -e "${YELLOW}⚠️  This will reset database and reseed everything!${NC}"
+echo ""
 
 # Check if Docker is installed
 echo "Checking prerequisites..."
@@ -101,8 +105,18 @@ echo "✅ Backend server is ready"
 echo "✅ All Docker services started"
 echo ""
 
-# Step 2: Seed database
-echo -e "${GREEN}Step 2: Seeding database with initial data...${NC}"
+# Step 2: Reset database
+echo -e "${RED}Step 2: Resetting database...${NC}"
+if docker compose exec -T socket-server node reset-database.js; then
+    echo "✅ Database reset complete"
+else
+    echo "⚠️  Reset failed (continuing with seeding anyway)"
+    echo "💡 Check logs: docker compose logs socket-server"
+fi
+echo ""
+
+# Step 3: Seed database
+echo -e "${GREEN}Step 3: Seeding database with initial data...${NC}"
 echo "📦 Creating admin user, quizzes, board configurations, content, and app configs..."
 
 # Run main seed script (users, quizzes, board configs)
@@ -122,17 +136,28 @@ else
     echo "⚠️  Content seeding failed (continuing anyway)"
     echo "💡 You can run manually: docker compose exec socket-server node seed-content.js"
 fi
+
+# Run environment seed script (environment configurations)
+echo "🌍 Seeding environment configurations..."
+if docker compose exec -T socket-server node seed-environment.js; then
+    echo "✅ Environment configurations seeded"
+else
+    echo "⚠️  Environment seeding failed (continuing anyway)"
+    echo "💡 You can run manually: docker compose exec socket-server node seed-environment.js"
+fi
+
+# Fix any existing users with level 0 to level 1
 echo ""
 
-# Step 3: Install Flutter dependencies
-echo -e "${GREEN}Step 3: Installing Flutter dependencies...${NC}"
+# Step 4: Install Flutter dependencies
+echo -e "${GREEN}Step 4: Installing Flutter dependencies...${NC}"
 flutter pub get
 
 echo "✅ Flutter dependencies installed"
 echo ""
 
-# Step 4: Verify setup
-echo -e "${GREEN}Step 4: Verifying setup...${NC}"
+# Step 5: Verify setup
+echo -e "${GREEN}Step 5: Verifying setup...${NC}"
 
 # Test backend API
 echo "🔍 Testing backend API..."
@@ -162,6 +187,14 @@ echo "   - Backend API:      http://localhost:3000"
 echo "   - Admin Dashboard:  http://localhost:8080"
 echo "   - MongoDB:          mongodb://localhost:27017"
 echo ""
+echo "📊 Database seeded with:"
+echo "   ✅ Admin user and test users"
+echo "   ✅ 30+ quiz questions (all levels)"
+echo "   ✅ 10 board configurations"
+echo "   ✅ 40 educational content items"
+echo "   ✅ 14 app configurations"
+echo "   ✅ 12 environment configurations"
+echo ""
 echo "🔑 Default Admin Credentials:"
 echo "   - Username: admin"
 echo "   - Password: admin123"
@@ -187,6 +220,9 @@ echo "   - View logs:        docker compose logs -f"
 echo "   - Stop services:    docker compose down"
 echo "   - Restart services: docker compose restart"
 echo "   - Check status:     docker compose ps"
+echo "   - Reset & reseed:   ./reset-seed.sh"
+echo ""
+echo -e "${YELLOW}💡 Note: Running ./setup.sh again will reset and reseed the database!${NC}"
 echo ""
 echo "📚 Documentation:"
 echo "   - README.md - Complete guide"
