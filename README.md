@@ -556,7 +556,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 This project is licensed under the MIT License.
 
 ## 👨‍💻 Author
-# Jefry Sunupurwa Asri
+#### Jefry Sunupurwa Asri
 Dibuat untuk edukasi tentang Tuberkulosis (TBC) di Indonesia.
 
 ## 🙏 Acknowledgments
