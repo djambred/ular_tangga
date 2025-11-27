@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Ular Tangga TBC</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="screen active">
+        <div class="login-container">
+            <div class="login-card">
+                <h1>🎮 Admin Dashboard</h1>
+                <h2>Game Ular Tangga Edukasi TBC</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label>Username atau Email</label>
+                        <input type="text" id="loginUsername" required placeholder="Masukkan username atau email">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="loginPassword" required placeholder="Masukkan password">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Login</button>
+                </form>
+                <div id="loginError" class="error-message"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Screen -->
+    <div id="dashboardScreen" class="screen">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>🎮 Admin Panel</h2>
+                <p id="adminName"></p>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="#" data-page="overview" class="active">📊 Overview</a></li>
+                <li><a href="#" data-page="users">👥 Manajemen User</a></li>
+                <li><a href="#" data-page="quizzes">📝 Manajemen Quiz</a></li>
+                <li><a href="#" data-page="games">🎯 Riwayat Game</a></li>
+                <li><a href="#" data-page="leaderboard">🏆 Leaderboard</a></li>
+                <li><a href="#" id="logoutBtn">🚪 Logout</a></li>
+            </ul>
+        </nav>
+
+        <main class="main-content">
+            <!-- Overview Page -->
+            <div id="overviewPage" class="page active">
+                <h1>Dashboard Overview</h1>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-info">
+                            <h3 id="totalUsers">0</h3>
+                            <p>Total Users</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🎮</div>
+                        <div class="stat-info">
+                            <h3 id="totalGames">0</h3>
+                            <p>Total Games</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📝</div>
+                        <div class="stat-info">
+                            <h3 id="totalQuizzes">0</h3>
+                            <p>Total Quizzes</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⏱️</div>
+                        <div class="stat-info">
+                            <h3 id="avgDuration">0</h3>
+                            <p>Avg Game Duration</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="content-grid">
+                    <div class="card">
+                        <h3>Recent Games</h3>
+                        <div id="recentGames" class="table-container"></div>
+                    </div>
+                    <div class="card">
+                        <h3>New Users</h3>
+                        <div id="recentUsers" class="table-container"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Users Page -->
+            <div id="usersPage" class="page">
+                <div class="page-header">
+                    <h1>Manajemen User</h1>
+                    <div class="page-actions">
+                        <input type="text" id="searchUsers" placeholder="Cari user..." class="search-input">
+                        <select id="filterRole" class="filter-select">
+                            <option value="">Semua Role</option>
+                            <option value="player">Player</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="usersTable" class="table-container"></div>
+                <div id="usersPagination" class="pagination"></div>
+            </div>
+
+            <!-- Quizzes Page -->
+            <div id="quizzesPage" class="page">
+                <div class="page-header">
+                    <h1>Manajemen Quiz</h1>
+                    <button id="addQuizBtn" class="btn btn-primary">+ Tambah Quiz</button>
+                </div>
+                <div id="quizzesTable" class="table-container"></div>
+            </div>
+
+            <!-- Games Page -->
+            <div id="gamesPage" class="page">
+                <div class="page-header">
+                    <h1>Riwayat Game</h1>
+                    <div class="page-actions">
+                        <select id="filterGameMode" class="filter-select">
+                            <option value="">Semua Mode</option>
+                            <option value="single">Single Player</option>
+                            <option value="multiplayer">Multiplayer</option>
+                        </select>
+                        <select id="filterLevel" class="filter-select">
+                            <option value="">Semua Level</option>
+                            <option value="1">Level 1</option>
+                            <option value="5">Level 5</option>
+                            <option value="10">Level 10</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="gamesTable" class="table-container"></div>
+                <div id="gamesPagination" class="pagination"></div>
+            </div>
+
+            <!-- Leaderboard Page -->
+            <div id="leaderboardPage" class="page">
+                <h1>🏆 Leaderboard</h1>
+                <div class="tabs">
+                    <button class="tab-btn active" data-sort="wins">By Wins</button>
+                    <button class="tab-btn" data-sort="games">By Games</button>
+                    <button class="tab-btn" data-sort="quizzes">By Quizzes</button>
+                </div>
+                <div id="leaderboardTable" class="table-container"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Quiz Modal -->
+    <div id="quizModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="quizModalTitle">Tambah Quiz</h2>
+                <span class="close">&times;</span>
+            </div>
+            <form id="quizForm">
+                <input type="hidden" id="quizId">
+                <div class="form-group">
+                    <label>Pertanyaan *</label>
+                    <textarea id="quizQuestion" required rows="3" placeholder="Masukkan pertanyaan"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Pilihan Jawaban *</label>
+                    <input type="text" id="quizOption0" required placeholder="Pilihan A">
+                    <input type="text" id="quizOption1" required placeholder="Pilihan B">
+                    <input type="text" id="quizOption2" required placeholder="Pilihan C">
+                    <input type="text" id="quizOption3" required placeholder="Pilihan D">
+                </div>
+                <div class="form-group">
+                    <label>Jawaban Benar *</label>
+                    <select id="quizCorrectAnswer" required>
+                        <option value="0">A</option>
+                        <option value="1">B</option>
+                        <option value="2">C</option>
+                        <option value="3">D</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Penjelasan *</label>
+                    <textarea id="quizExplanation" required rows="3" placeholder="Penjelasan jawaban"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Kategori *</label>
+                        <select id="quizCategory" required>
+                            <option value="pengenalan">Pengenalan</option>
+                            <option value="gejala">Gejala</option>
+                            <option value="penularan">Penularan</option>
+                            <option value="pengobatan">Pengobatan</option>
+                            <option value="pencegahan">Pencegahan</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Kesulitan *</label>
+                        <select id="quizDifficulty" required>
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="quizIsActive" checked> Quiz Aktif
+                    </label>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary cancel-btn">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

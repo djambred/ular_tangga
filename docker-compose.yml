@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: ular-tangga-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=ulartangga123
+      - MONGO_INITDB_DATABASE=ular_tangga
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - ular-tangga-network
+
+  socket-server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: ular-tangga-server
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./server/.env
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    networks:
+      - ular-tangga-network
+
+  admin-dashboard:
+    build:
+      context: ./admin-dashboard
+      dockerfile: Dockerfile
+    container_name: ular-tangga-admin
+    ports:
+      - "8080:80"
+    environment:
+      - API_URL=http://socket-server:3000
+    restart: unless-stopped
+    depends_on:
+      - socket-server
+    networks:
+      - ular-tangga-network
+
+volumes:
+  mongodb_data:
+
+networks:
+  ular-tangga-network:
+    driver: bridge
