@@ -158,23 +158,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Logout Button (top right)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          IconButton(
-                            onPressed: _handleLogout,
-                            icon: const Icon(Icons.logout_rounded),
-                            color: Colors.white,
-                            tooltip: 'Logout',
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.white.withOpacity(0.2),
-                              padding: const EdgeInsets.all(12),
-                            ),
-                          ),
-                        ],
-                      ),
-                      
                       // Welcome Section
                       _buildWelcomeSection(),
                       
@@ -259,6 +242,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                 ),
               ],
+            ),
+          ),
+          // Logout Button
+          IconButton(
+            onPressed: _handleLogout,
+            icon: const Icon(Icons.logout_rounded),
+            color: Colors.white,
+            tooltip: 'Logout',
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.white.withOpacity(0.15),
+              padding: const EdgeInsets.all(12),
             ),
           ),
         ],
