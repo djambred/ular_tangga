@@ -175,7 +175,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> with Tick
       Player(id: 1, name: 'Pemain 1', color: Colors.blue),
       Player(id: 2, name: 'Pemain 2', color: Colors.red),
       Player(id: 3, name: 'Pemain 3', color: Colors.green),
-      Player(id: 4, name: 'Pemain 4', color: Colors.orange),
+      Player(id: 4, name: 'Pemain 4', color: Colors.purple),
     ];
     currentPlayerIndex = 0;
     showInfo = true;
@@ -192,7 +192,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> with Tick
     print('   My Socket ID: $mySocketId');
     print('   Room Players: $roomPlayers');
     
-    final colors = [Colors.blue, Colors.red, Colors.green, Colors.orange];
+    final colors = [Colors.blue, Colors.red, Colors.green, Colors.purple];
     players = [];
     for (int i = 0; i < roomPlayers.length; i++) {
       final p = roomPlayers[i] as Map<String, dynamic>;
@@ -377,9 +377,14 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> with Tick
       // Server will emit dice_rolled event with result
     } else {
       // Local mode: generate dice result immediately
-      final value = Random().nextInt(3) + 4; // 4..6 range
-      diceValue = value;
-      _showDiceDialog(value);
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (!mounted) return;
+        final value = Random().nextInt(3) + 4; // 4..6 range
+        setState(() {
+          diceValue = value;
+        });
+        _showDiceDialog(value);
+      });
     }
   }
 
@@ -1020,20 +1025,59 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> with Tick
                     color: Colors.red.shade700,
                     style: IconButton.styleFrom(backgroundColor: Colors.red.shade50, padding: const EdgeInsets.all(8)),
                   ),
-                  Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.indigo.shade400, Colors.indigo.shade600]), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.group, color: Colors.white, size:24)),
-                    const SizedBox(width:12),
-                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Multiplayer Edu TBC', style: TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:Colors.indigo.shade900,letterSpacing:0.5)),
-                      Text('Mode Edukasi Bersama', style: TextStyle(fontSize:11,color:Colors.indigo.shade600)),
-                    ])
-                  ])),
+                  Expanded(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center, 
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6), 
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [Colors.indigo.shade400, Colors.indigo.shade600]), 
+                            borderRadius: BorderRadius.circular(10)
+                          ), 
+                          child: const Icon(Icons.group, color: Colors.white, size:20)
+                        ),
+                        const SizedBox(width:8),
+                        Flexible(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start, 
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Multiplayer TBC', 
+                                style: TextStyle(
+                                  fontSize:15,
+                                  fontWeight:FontWeight.bold,
+                                  color:Colors.indigo.shade900,
+                                  letterSpacing:0.3
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                'Mode Edukasi', 
+                                style: TextStyle(
+                                  fontSize:10,
+                                  color:Colors.indigo.shade600
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ]
+                          ),
+                        ),
+                      ]
+                    ),
+                  ),
                   const SizedBox(width:48),
                 ]),
                 const SizedBox(height: 12),
-                Wrap(spacing:8, runSpacing:6, alignment: WrapAlignment.center, children: [
+                Wrap(spacing:6, runSpacing:4, alignment: WrapAlignment.center, children: [
                   _chip(icon: Icons.timer_rounded, label: _formatTime(remainingSeconds), color: remainingSeconds < 60 ? Colors.red : Colors.purple),
-                  ...players.map((p) => _chip(icon: Icons.person_pin_circle_rounded, label: '${p.name.split(' ').last} ${p.position}', color: p.color as MaterialColor)).toList(),
+                  ...players.map((p) {
+                    // Shorten player name to first letter + position
+                    final shortName = 'P${p.id}:${p.position}';
+                    return _chip(icon: Icons.person_rounded, label: shortName, color: p.color as MaterialColor);
+                  }).toList(),
                   _chip(icon: Icons.quiz_rounded, label: '${completedQuizzes.length}/10', color: Colors.orange),
                 ])
               ]),
@@ -1165,13 +1209,27 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> with Tick
 
   Widget _chip({required IconData icon, required String label, required MaterialColor color}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal:12, vertical:6),
+      padding: const EdgeInsets.symmetric(horizontal:8, vertical:4),
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: [color.shade100, color.shade200]),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.shade300, width:1.5),
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size:18, color: color.shade700), const SizedBox(width:6), Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: color.shade800, fontSize:12))]),
+      child: Row(
+        mainAxisSize: MainAxisSize.min, 
+        children: [
+          Icon(icon, size:16, color: color.shade700), 
+          const SizedBox(width:4), 
+          Flexible(
+            child: Text(
+              label, 
+              style: TextStyle(fontWeight: FontWeight.bold, color: color.shade800, fontSize:11),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
