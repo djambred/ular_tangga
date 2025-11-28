@@ -223,8 +223,13 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> with Tick
 
   void _setupSocketListeners() {
     _socketService.onDiceRolled((data) {
-      if (!mounted) return;
+      print('📡 Received dice_rolled event from server: $data');
+      if (!mounted) {
+        print('⚠️ Widget not mounted, ignoring dice_rolled event');
+        return;
+      }
       final diceResult = data['dice'] as int;
+      print('🎲 Server dice result: $diceResult');
       setState(() {
         diceValue = diceResult;
         isRolling = false;
@@ -359,50 +364,86 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> with Tick
   }
 
   void _rollDice() {
-    if (isRolling || winner != null || isTimeUp) return;
+    print('🎲 _rollDice called! isRolling: $isRolling, winner: $winner, isTimeUp: $isTimeUp');
+    print('🎲 isSocketBased: ${widget.isSocketBased}, _isMyTurn: $_isMyTurn');
+    
+    if (isRolling || winner != null || isTimeUp) {
+      print('⚠️ Cannot roll: isRolling=$isRolling, winner=$winner, isTimeUp=$isTimeUp');
+      return;
+    }
     
     // In socket mode, only allow rolling on your turn
     if (widget.isSocketBased && !_isMyTurn) {
+      print('⚠️ Not your turn in socket mode');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Bukan giliran Anda!'), backgroundColor: Colors.orange),
       );
       return;
     }
     
-    setState(() { isRolling = true; });
-    
     if (widget.isSocketBased) {
       // Send roll request to server
+      print('📡 Socket mode: sending roll request to server...');
+      setState(() { isRolling = true; });
       _socketService.rollDice();
+      print('📡 Roll request sent, waiting for dice_rolled event from server...');
       // Server will emit dice_rolled event with result
+      // Add timeout fallback in case server doesn't respond
+      Future.delayed(const Duration(seconds: 5), () {
+        if (mounted && isRolling) {
+          print('⚠️ Server timeout! Rolling locally as fallback');
+          final value = Random().nextInt(3) + 4;
+          setState(() {
+            diceValue = value;
+            isRolling = false;
+          });
+          _showDiceResultDialog(value);
+        }
+      });
     } else {
       // Local mode: generate dice result immediately
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (!mounted) return;
-        final value = Random().nextInt(3) + 4; // 4..6 range
-        setState(() {
-          diceValue = value;
-        });
+      final value = Random().nextInt(3) + 4; // 4..6 range
+      print('🎲 Rolling dice in local mode, value: $value');
+      setState(() {
+        diceValue = value;
+        isRolling = true;
+      });
+      // Show dice dialog after a short delay to ensure state is updated
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (!mounted) {
+          print('⚠️ Widget not mounted after delay');
+          return;
+        }
+        print('✅ About to show dice dialog');
         _showDiceDialog(value);
       });
     }
   }
 
   void _showDiceDialog(int result) {
+    print('🎲 Showing dice dialog with result: $result');
     _showDiceResultDialog(result);
   }
 
   void _showDiceResultDialog(int result) {
+    print('🎲 _showDiceResultDialog called with result: $result, mounted: $mounted');
+    if (!mounted) {
+      print('⚠️ Widget not mounted, cannot show dialog');
+      return;
+    }
+    
     bool moved = false; bool scheduled = false;
     void trigger(BuildContext ctx) {
       if (moved) return; moved = true;
       Navigator.of(ctx).pop();
       _movePlayer(result);
     }
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dCtx) {
+    
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (dCtx) {
         if (!scheduled) { scheduled = true; Future.delayed(const Duration(milliseconds: 1100), () => trigger(dCtx)); }
         return GestureDetector(
           onTap: () => trigger(dCtx),
@@ -450,7 +491,15 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> with Tick
           ),
         );
       }
-    );
+      );
+    } catch (e) {
+      print('❌ Error showing dice dialog: $e');
+      // If dialog fails, still move the player
+      setState(() {
+        isRolling = false;
+      });
+      _movePlayer(result);
+    }
   }
 
   void _movePlayer(int steps) async {
@@ -1153,7 +1202,10 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> with Tick
                   // Dice button
                   Center(
                     child: GestureDetector(
-                      onTap: isRolling ? null : _rollDice,
+                      onTap: () {
+                        print('👆 Dice button tapped!');
+                        _rollDice();
+                      },
                       child: ScaleTransition(
                         scale: isRolling ? _pulseAnimation : const AlwaysStoppedAnimation(1.0),
                         child: Container(
