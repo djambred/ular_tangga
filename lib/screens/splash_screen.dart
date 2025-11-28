@@ -56,19 +56,56 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       // Check if this is first time launch
       final isFirstLaunch = prefs.getBool('is_first_launch') ?? true;
       
-      // Check if user is logged in
+      // Check if user is logged in (has token)
       final isLoggedIn = await apiService.isLoggedIn();
       
+      bool isValidSession = false;
+      
+      if (isLoggedIn) {
+        // Validate token by fetching profile
+        print('🔐 Token found, validating session...');
+        try {
+          final profileResponse = await apiService.getProfile().timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw Exception('Timeout validating session');
+            },
+          );
+          
+          if (profileResponse['success'] == true && profileResponse['data'] != null) {
+            // Cache user profile for offline use
+            final userData = profileResponse['data'];
+            await prefs.setString('cached_user_id', userData['_id'] ?? '');
+            await prefs.setString('cached_username', userData['username'] ?? '');
+            await prefs.setString('cached_email', userData['email'] ?? '');
+            await prefs.setString('cached_full_name', userData['fullName'] ?? '');
+            
+            print('✅ Session valid, user: ${userData['username']}');
+            isValidSession = true;
+          }
+        } catch (e) {
+          print('❌ Session validation failed: $e');
+          // Token expired or invalid, clear it
+          await apiService.clearToken();
+          await prefs.remove('cached_user_id');
+          await prefs.remove('cached_username');
+          await prefs.remove('cached_email');
+          await prefs.remove('cached_full_name');
+          isValidSession = false;
+        }
+      }
+      
       // Wait for minimum splash duration
-      await Future.delayed(const Duration(seconds: 3));
+      await Future.delayed(const Duration(seconds: 2));
       
       if (mounted) {
         if (isFirstLaunch) {
           // First time user -> Show instructions
           await prefs.setBool('is_first_launch', false);
           Navigator.of(context).pushReplacementNamed('/instructions');
-        } else if (isLoggedIn) {
-          // Registered user -> Show bottom navigation
+        } else if (isValidSession) {
+          // Valid session -> Auto login to main navigation
+          print('🚀 Auto-login successful');
           Navigator.of(context).pushReplacement(
             PageRouteBuilder(
               pageBuilder: (context, animation, secondaryAnimation) => 
@@ -80,14 +117,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             ),
           );
         } else {
-          // Guest user -> Go directly to auth screen
+          // No valid session -> Go to auth screen
+          print('🔓 No valid session, showing auth screen');
           Navigator.of(context).pushReplacementNamed('/auth');
         }
       }
     } catch (e) {
       print('⚠️ Initialization error: $e');
       // Continue anyway with defaults
-      await Future.delayed(const Duration(seconds: 3));
+      await Future.delayed(const Duration(seconds: 2));
       
       if (mounted) {
         // On error, go to auth screen

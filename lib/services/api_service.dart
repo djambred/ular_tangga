@@ -445,6 +445,32 @@ class ApiService {
 
   Future<void> logout() async {
     await clearToken();
+    // Clear cached user data
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('cached_user_id');
+    await prefs.remove('cached_username');
+    await prefs.remove('cached_email');
+    await prefs.remove('cached_full_name');
+  }
+  
+  // Save user data locally for offline access
+  Future<void> saveUserData(Map<String, dynamic> userData) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('cached_user_id', userData['_id'] ?? '');
+    await prefs.setString('cached_username', userData['username'] ?? '');
+    await prefs.setString('cached_email', userData['email'] ?? '');
+    await prefs.setString('cached_full_name', userData['fullName'] ?? '');
+  }
+  
+  // Get cached user data
+  Future<Map<String, String>> getCachedUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'userId': prefs.getString('cached_user_id') ?? '',
+      'username': prefs.getString('cached_username') ?? '',
+      'email': prefs.getString('cached_email') ?? '',
+      'fullName': prefs.getString('cached_full_name') ?? '',
+    };
   }
 
   // Dashboard APIs

@@ -37,17 +37,108 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
-      // Use dashboard API for richer statistics
-      final result = await _apiService.getDashboardStats();
+      // Try to use dashboard API for richer statistics
+      try {
+        final result = await _apiService.getDashboardStats().timeout(
+          const Duration(seconds: 10),
+        );
+        
+        if (result['success']) {
+          final dashboardData = result['data'];
+          setState(() {
+            _userProfile = {
+              ...dashboardData['user'],
+              'email': dashboardData['user']['email'] ?? '',
+            };
+            _userStats = dashboardData['statistics'];
+            _isGuest = false;
+            _isLoading = false;
+          });
+          return;
+        }
+      } catch (e) {
+        print('❌ Dashboard stats error: $e');
+        // Try profile API as fallback
+        try {
+          final profileResult = await _apiService.getProfile().timeout(
+            const Duration(seconds: 10),
+          );
+          if (profileResult['success']) {
+            setState(() {
+              _userProfile = profileResult['data'];
+              _userStats = profileResult['data']['statistics'] ?? {};
+              _isGuest = false;
+              _isLoading = false;
+            });
+            return;
+          }
+        } catch (e) {
+          print('❌ Profile API error: $e');
+        }
+      }
       
-      if (result['success']) {
-        final dashboardData = result['data'];
+      // If all API calls fail, use cached data
+      print('ℹ️ Using cached user data (offline mode)');
+      final cachedData = await _apiService.getCachedUserData();
+      
+      if (cachedData['userId']?.isNotEmpty ?? false) {
         setState(() {
           _userProfile = {
-            ...dashboardData['user'],
-            'email': dashboardData['user']['email'] ?? '',
+            '_id': cachedData['userId'],
+            'username': cachedData['username'],
+            'email': cachedData['email'],
+            'fullName': cachedData['fullName'],
           };
-          _userStats = dashboardData['statistics'];
+          _userStats = {
+            'totalWins': 0,
+            'totalGames': 0,
+            'totalQuizzesAnswered': 0,
+            'totalQuizzesCorrect': 0,
+            'highestLevel': 0,
+            'totalScore': 0,
+            'highestScore': 0,
+            'totalPlayTime': 0,
+          };
+          _isGuest = false;
+          _isLoading = false;
+        });
+        
+        // Show offline indicator
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.cloud_off, color: Colors.white),
+                  SizedBox(width: 10),
+                  Text('Mode Offline - Data statistik tidak tersedia'),
+                ],
+              ),
+              backgroundColor: Colors.orange.shade700,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        // No cached data, force logout
+        await _apiService.clearToken();
+        setState(() {
+          _isGuest = true;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading user data: $e');
+      // Last resort: check cached data
+      final cachedData = await _apiService.getCachedUserData();
+      if (cachedData['userId']?.isNotEmpty ?? false) {
+        setState(() {
+          _userProfile = {
+            'username': cachedData['username'],
+            'email': cachedData['email'],
+            'fullName': cachedData['fullName'],
+          };
+          _userStats = {};
           _isGuest = false;
           _isLoading = false;
         });
@@ -57,28 +148,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _isLoading = false;
         });
       }
-    } catch (e) {
-      print('Error loading profile: $e');
-      // Fallback to profile API if dashboard fails
-      try {
-        final profileResult = await _apiService.getProfile();
-        if (profileResult['success']) {
-          setState(() {
-            _userProfile = profileResult['data'];
-            _userStats = profileResult['data']['statistics'];
-            _isGuest = false;
-            _isLoading = false;
-          });
-          return;
-        }
-      } catch (e) {
-        print('Fallback profile load failed: $e');
-      }
-      
-      setState(() {
-        _isGuest = true;
-        _isLoading = false;
-      });
     }
   }
 

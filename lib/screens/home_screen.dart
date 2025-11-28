@@ -49,15 +49,61 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       final isLoggedIn = await _apiService.isLoggedIn();
       
       if (isLoggedIn) {
-        // Use dashboard API instead of profile API for richer data
-        final dashboardResult = await _apiService.getDashboardStats();
+        // Try dashboard API for richer data
+        try {
+          final dashboardResult = await _apiService.getDashboardStats().timeout(
+            const Duration(seconds: 10),
+          );
+          
+          if (dashboardResult['success']) {
+            final dashboardData = dashboardResult['data'];
+            setState(() {
+              _userProfile = dashboardData['user'];
+              _userStats = dashboardData['statistics'];
+              _isGuest = false;
+            });
+            return;
+          }
+        } catch (e) {
+          print('❌ Dashboard error: $e');
+          // Try profile API as fallback
+          try {
+            final profileResult = await _apiService.getProfile().timeout(
+              const Duration(seconds: 10),
+            );
+            if (profileResult['success']) {
+              final userData = profileResult['data'];
+              setState(() {
+                _userProfile = userData;
+                _userStats = userData['statistics'] ?? {};
+                _isGuest = false;
+              });
+              return;
+            }
+          } catch (e) {
+            print('❌ Profile API error: $e');
+          }
+        }
         
-        if (dashboardResult['success']) {
-          final dashboardData = dashboardResult['data'];
+        // If both APIs fail, use cached data
+        print('ℹ️ Using cached user data');
+        final cachedData = await _apiService.getCachedUserData();
+        
+        if (cachedData['userId']?.isNotEmpty ?? false) {
           setState(() {
-            _userProfile = dashboardData['user'];
-            _userStats = dashboardData['statistics'];
+            _userProfile = {
+              'username': cachedData['username'],
+              'fullName': cachedData['fullName'],
+            };
+            _userStats = {
+              'highestLevel': 0,
+              'totalGames': 0,
+            };
             _isGuest = false;
+          });
+        } else {
+          setState(() {
+            _isGuest = true;
           });
         }
       } else {
@@ -66,23 +112,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         });
       }
     } catch (e) {
-      print('Error loading user data: $e');
-      // Fallback to profile API if dashboard fails
-      try {
-        final profileResult = await _apiService.getProfile();
-        if (profileResult['success']) {
-          final userData = profileResult['data'];
-          setState(() {
-            _userProfile = userData;
-            _userStats = userData['statistics'];
-            _isGuest = false;
-          });
-          return;
-        }
-      } catch (e) {
-        print('Fallback profile load failed: $e');
-      }
-      
+      print('❌ Error loading user data: $e');
       setState(() {
         _isGuest = true;
       });

@@ -82,8 +82,10 @@ class _AuthScreenState extends State<AuthScreen> {
     });
 
     try {
+      Map<String, dynamic> response;
+      
       if (_isLogin) {
-        await _apiService.login(
+        response = await _apiService.login(
           username: _usernameController.text.trim(),
           password: _passwordController.text,
         ).timeout(
@@ -93,7 +95,7 @@ class _AuthScreenState extends State<AuthScreen> {
           },
         );
       } else {
-        await _apiService.register(
+        response = await _apiService.register(
           username: _usernameController.text.trim(),
           email: _emailController.text.trim(),
           password: _passwordController.text,
@@ -104,6 +106,12 @@ class _AuthScreenState extends State<AuthScreen> {
             throw Exception('Connection timeout. Pastikan server berjalan dan URL benar.');
           },
         );
+      }
+      
+      // Save user data locally for persistence
+      if (response['data'] != null && response['data']['user'] != null) {
+        await _apiService.saveUserData(response['data']['user']);
+        print('✅ User data cached successfully');
       }
 
       if (mounted) {
