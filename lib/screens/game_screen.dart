@@ -362,15 +362,20 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       final userData = profile['data'] as Map<String, dynamic>;
       final userId = userData['_id'] ?? userData['id'];
       
-      if (userId == null || userId.isEmpty) {
-        print('❌ No valid userId found in profile: $_id=$userId');
+      if (userId == null || (userId is String && userId.isEmpty)) {
+        print('❌ No valid userId found in profile. Raw data: $userData');
         throw Exception('Invalid userId');
       }
       
       print('✅ UserId validated: $userId');
       
       // Prepare game history data
+      final endedAt = DateTime.now();
+      final startedAt = endedAt.subtract(Duration(seconds: playTime));
+      final String gameId = DateTime.now().millisecondsSinceEpoch.toString();
+
       final Map<String, dynamic> gameData = {
+        'gameId': gameId,
         'gameMode': widget.mode, // Use actual mode: 'single' or 'multiplayer'
         'level': widget.level,  // Use actual level number
         'players': [
@@ -385,7 +390,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             'score': score,
           }
         ],
-        'quizzes': completedQuizzes.toList(),
+        // Send empty quizzes array to match backend schema shape (optional field)
+        'quizzes': [],
+        'startedAt': startedAt.toIso8601String(),
+        'endedAt': endedAt.toIso8601String(),
         'duration': playTime,
       };
       
@@ -420,126 +428,110 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _generateRandomSnakesAndLadders() {
-  setState(() {
-    snakesPositions = {};
-    laddersPositions = {};
-    quizPositions = {};
-  });
-  
-  final random = Random();
+    final random = Random();
 
-  const int minDistance = 2;           // Jarak minimal antar ular/tangga/kuis (dikurangi untuk gameplay lebih cepat)
-  const int maxLadderHeight = 25;      // Tinggi maksimal tangga (ditingkatkan untuk mempercepat)
+    const int minDistance = 2;      // Minimum spacing between elements
+    const int maxLadderHeight = 25; // Maximum ladder climb distance
 
-  bool isForbidden(int pos) {
-    if (pos == 1 || pos == boardSize) return true; // 1 dan 100 terlarang
-    if (pos % 5 == 0) return true;                 // Kelipatan 5 terlarang
-    return false;
-  }
-
-  bool isSnakeTooClose(int start) {
-    for (var s in snakesPositions.keys) {
-      if ((s - start).abs() < minDistance) return true;
+    bool isForbidden(int pos) {
+      if (pos <= 1 || pos >= boardSize) return true; // Block start (1) and finish (100)
+      if (pos % 5 == 0) return true;                 // Keep special tiles clean
+      return false;
     }
-    return false;
-  }
 
-  bool isLadderTooClose(int start) {
-    for (var l in laddersPositions.keys) {
-      if ((l - start).abs() < minDistance) return true;
-    }
-    return false;
-  }
+    final Map<int, int> newSnakes = {};
+    final Map<int, int> newLadders = {};
+    final Set<int> newQuizzes = {};
 
-  bool isQuizTooClose(int start) {
-    for (var q in quizPositions) {
-      if ((q - start).abs() < minDistance) return true;
-    }
-    return false;
-  }
-
-  // ==============================
-  // Generate 10 Ular
-  // ==============================
-  for (int i = 0; i < 10; i++) {
-    int startPos;
-
-    do {
-      startPos = random.nextInt(boardSize - 20) + 21; // 21–80
-    } while (
-      snakesPositions.containsKey(startPos) ||
-      laddersPositions.containsKey(startPos) ||
-      quizPositions.contains(startPos) ||
-      isForbidden(startPos) ||
-      isSnakeTooClose(startPos)
-    );
-
-    int endPos;
-    do {
-      endPos = random.nextInt(startPos - 10) + 1; // Minimal beda 10
-    } while (isForbidden(endPos));
-
-    snakesPositions[startPos] = endPos;
-  }
-
-  // ==============================
-  // Generate 10 Tangga
-  // ==============================
-  for (int i = 0; i < 10; i++) {
-    int startPos;
-
-    do {
-      startPos = random.nextInt(boardSize - 20) + 1; // 1–80
-    } while (
-      laddersPositions.containsKey(startPos) ||
-      snakesPositions.containsKey(startPos) ||
-      quizPositions.contains(startPos) ||
-      isForbidden(startPos) ||
-      isLadderTooClose(startPos)
-    );
-
-    int endPos;
-
-    do {
-      endPos = startPos +
-          random.nextInt(boardSize - startPos - 10) + 10; // Minimal +10
-
-      // Batasi tinggi tangga
-      if (endPos - startPos > maxLadderHeight) {
-        endPos = startPos + maxLadderHeight;
+    bool isSnakeTooClose(int start) {
+      for (var s in newSnakes.keys) {
+        if ((s - start).abs() < minDistance) return true;
       }
+      return false;
+    }
 
-      if (endPos > boardSize - 1) endPos = boardSize - 1;
+    bool isLadderTooClose(int start) {
+      for (var l in newLadders.keys) {
+        if ((l - start).abs() < minDistance) return true;
+      }
+      return false;
+    }
 
-    } while (isForbidden(endPos));
+    bool isQuizTooClose(int start) {
+      for (var q in newQuizzes) {
+        if ((q - start).abs() < minDistance) return true;
+      }
+      return false;
+    }
 
-    laddersPositions[startPos] = endPos;
+    while (newSnakes.length < 10) {
+      int startPos;
+      do {
+        startPos = random.nextInt(boardSize - 40) + 30; // Keep snakes in middle-upper range
+      } while (
+        newSnakes.containsKey(startPos) ||
+        newLadders.containsKey(startPos) ||
+        newQuizzes.contains(startPos) ||
+        isForbidden(startPos) ||
+        isSnakeTooClose(startPos)
+      );
+
+      int endPos;
+      do {
+        endPos = random.nextInt(startPos - 10) + 2; // Ensure at least drop of 10
+      } while (isForbidden(endPos));
+
+      newSnakes[startPos] = endPos;
+    }
+
+    while (newLadders.length < 10) {
+      int startPos;
+      do {
+        startPos = random.nextInt(boardSize - 40) + 5; // Avoid edges
+      } while (
+        newLadders.containsKey(startPos) ||
+        newSnakes.containsKey(startPos) ||
+        newQuizzes.contains(startPos) ||
+        isForbidden(startPos) ||
+        isLadderTooClose(startPos)
+      );
+
+      int endPos;
+      do {
+        endPos = startPos + random.nextInt(max(5, boardSize - startPos - 10)) + 10;
+        if (endPos - startPos > maxLadderHeight) {
+          endPos = startPos + maxLadderHeight;
+        }
+        if (endPos >= boardSize) {
+          endPos = boardSize - 1;
+        }
+      } while (isForbidden(endPos));
+
+      newLadders[startPos] = endPos;
+    }
+
+    while (newQuizzes.length < 10) {
+      int quizPos;
+      do {
+        quizPos = random.nextInt(boardSize - 20) + 10; // Stay clear of start/finish
+      } while (
+        newLadders.containsKey(quizPos) ||
+        newSnakes.containsKey(quizPos) ||
+        newQuizzes.contains(quizPos) ||
+        isForbidden(quizPos) ||
+        isQuizTooClose(quizPos)
+      );
+
+      newQuizzes.add(quizPos);
+    }
+
+    setState(() {
+      snakesPositions = newSnakes;
+      laddersPositions = newLadders;
+      quizPositions = newQuizzes;
+      _isLoadingBoard = false;
+    });
   }
-
-  // ==============================
-  // Generate Quiz Positions (selalu 10 quiz di board)
-  // ==============================
-  for (int i = 0; i < 10; i++) {
-    int quizPos;
-
-    do {
-      quizPos = random.nextInt(boardSize - 20) + 10; // 10–80
-    } while (
-      laddersPositions.containsKey(quizPos) ||
-      snakesPositions.containsKey(quizPos) ||
-      quizPositions.contains(quizPos) ||
-      isForbidden(quizPos) ||
-      isQuizTooClose(quizPos)
-    );
-
-    quizPositions.add(quizPos);
-  }
-  
-  // Set loading selesai
-  setState(() {
-    _isLoadingBoard = false;
-  });
-}
 
 
   void _rollDice() async {
@@ -594,140 +586,141 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           behavior: HitTestBehavior.opaque,
           onTap: () => triggerMove(dialogContext),
           child: Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          elevation: 24,
-          backgroundColor: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Colors.blue.shade50, Colors.purple.shade50],
-              ),
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Colors.blue.shade300,
-                width: 3,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.blue.withOpacity(0.5),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [Colors.blue.shade400, Colors.purple.shade400],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.blue.withOpacity(0.5),
-                        blurRadius: 15,
-                        offset: const Offset(0, 5),
+            elevation: 24,
+            backgroundColor: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Colors.blue.shade50, Colors.purple.shade50],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: Colors.blue.shade300,
+                  width: 3,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blue.withOpacity(0.5),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [Colors.blue.shade400, Colors.purple.shade400],
                       ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.casino_rounded,
-                    color: Colors.white,
-                    size: 48,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'HASIL DADU',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade800,
-                    letterSpacing: 1,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Colors.orange.shade400, Colors.red.shade400],
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blue.withOpacity(0.5),
+                          blurRadius: 15,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
                     ),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
+                    child: const Icon(
+                      Icons.casino_rounded,
                       color: Colors.white,
-                      width: 4,
+                      size: 48,
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.orange.withOpacity(0.5),
-                        blurRadius: 15,
-                        offset: const Offset(0, 5),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'HASIL DADU',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade800,
+                      letterSpacing: 1,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Colors.orange.shade400, Colors.red.shade400],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white,
+                        width: 4,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.orange.withOpacity(0.5),
+                          blurRadius: 15,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        '$diceResult',
+                        style: const TextStyle(
+                          fontSize: 56,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black26,
+                              offset: Offset(2, 2),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.green.shade600),
+                          strokeWidth: 3,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Pion bergerak otomatis...',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.green.shade700,
+                        ),
                       ),
                     ],
                   ),
-                  child: Center(
-                    child: Text(
-                      '$diceResult',
-                      style: const TextStyle(
-                        fontSize: 56,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black26,
-                            offset: Offset(2, 2),
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Sentuh layar untuk mempercepat',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
                     ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.green.shade600),
-                        strokeWidth: 3,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Pion bergerak otomatis...',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.green.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Sentuh layar untuk mempercepat',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -1701,10 +1694,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   void _showWinDialog() {
     gameTimer?.cancel();
     
-    // Save game history and wait for completion
+    // Save game history (non-blocking) and handle failures gracefully
     _saveGameHistory(isWinner: true).then((_) {
-      // Notify that data should be refreshed
       print('💾 Game saved, level should be unlocked now');
+    }).catchError((e) {
+      print('⚠️ Save game failed (ignored to continue UX): $e');
     });
     
     showDialog(
@@ -2412,9 +2406,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   
                   // Icon center
                   Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
                         if (isSnake)
                           Container(
                             padding: const EdgeInsets.all(4),
@@ -2480,7 +2477,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                               size: cellSize * 0.45,
                             ),
                           ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                   

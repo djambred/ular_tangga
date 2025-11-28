@@ -198,14 +198,33 @@ class ApiService {
   Future<Map<String, dynamic>> saveGameHistory(Map<String, dynamic> gameData) async {
     try {
       await loadToken();
+      // Normalize payload to satisfy production schema
+      final now = DateTime.now();
+      final normalized = Map<String, dynamic>.from(gameData);
+      normalized['gameId'] ??= now.millisecondsSinceEpoch.toString();
+      final duration = (normalized['duration'] is num) ? (normalized['duration'] as num).toInt() : 0;
+      normalized['endedAt'] ??= now.toIso8601String();
+      normalized['startedAt'] ??= now.subtract(Duration(seconds: duration)).toIso8601String();
+      
+      // Ensure quizzes is an array of objects or empty array
+      if (normalized['quizzes'] == null) {
+        normalized['quizzes'] = [];
+      } else if (normalized['quizzes'] is List) {
+        final q = normalized['quizzes'] as List;
+        if (q.isNotEmpty && (q.first is int || q.first is String)) {
+          // Unknown shape (positions only) — backend expects objects; send empty
+          normalized['quizzes'] = [];
+        }
+      }
+
       print('🔌 [API] Sending game history to: $_baseUrl/game/history');
       print('🔌 [API] Headers: ${_getHeaders()}');
-      print('🔌 [API] Body: $gameData');
+      print('🔌 [API] Body: $normalized');
       
       final response = await http.post(
         Uri.parse('$_baseUrl/game/history'),
         headers: _getHeaders(),
-        body: jsonEncode(gameData),
+        body: jsonEncode(normalized),
       ).timeout(const Duration(seconds: 30), onTimeout: () {
         throw Exception('Request timeout - server took too long to respond');
       });

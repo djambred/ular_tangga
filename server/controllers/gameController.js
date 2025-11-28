@@ -1,9 +1,45 @@
+const mongoose = require('mongoose');
 const GameHistory = require('../models/GameHistory');
 const User = require('../models/User');
 
 exports.saveGameHistory = async (req, res) => {
   try {
-    const gameHistory = new GameHistory(req.body);
+    // Sanitize and enrich payload to satisfy schema
+    const body = req.body || {};
+    const players = Array.isArray(body.players) ? body.players : [];
+    const duration = Number.isFinite(body.duration) ? body.duration : (players[0]?.playTime || 0);
+    const endedAt = new Date();
+    const startedAt = new Date(endedAt.getTime() - (Math.max(0, duration) * 1000));
+    const safePlayers = players.map(p => ({
+      userId: p.userId,
+      username: p.username,
+      finalPosition: p.finalPosition,
+      quizzesAnswered: p.quizzesAnswered,
+      quizzesCorrect: p.quizzesCorrect,
+      isWinner: !!p.isWinner,
+      playTime: p.playTime,
+    }));
+
+    const payload = {
+      gameId: body.gameId || new mongoose.Types.ObjectId().toString(),
+      gameMode: body.gameMode || 'single',
+      level: body.level || 1,
+      players: safePlayers,
+      quizzes: Array.isArray(body.quizzes) && body.quizzes.length > 0 && typeof body.quizzes[0] === 'object'
+        ? body.quizzes
+        : [],
+      startedAt,
+      endedAt,
+      duration: Math.max(0, duration),
+      roomCode: body.roomCode,
+    };
+
+    // Basic validation
+    if (!payload.level || !payload.gameMode || safePlayers.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid game data' });
+    }
+
+    const gameHistory = new GameHistory(payload);
     await gameHistory.save();
 
     // Update user statistics
