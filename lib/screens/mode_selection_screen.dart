@@ -334,8 +334,9 @@ class _GameModeSelectionScreenState extends State<GameModeSelectionScreen> {
             ],
           ),
           content: const Text(
-            'Fitur multiplayer hanya tersedia untuk pengguna yang sudah login.\n\n'
-            'Silakan login atau daftar untuk bermain multiplayer dengan teman!',
+            'Fitur multiplayer hanya tersedia untuk pengguna terdaftar.\n\n'
+            'Guest user tidak dapat bermain multiplayer.\n\n'
+            'Silakan login atau daftar akun baru untuk bermain multiplayer dengan teman!',
             style: TextStyle(fontSize: 16),
           ),
           actions: [

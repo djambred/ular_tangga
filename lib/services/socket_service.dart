@@ -21,20 +21,21 @@ class SocketService {
 
     // Determine if using HTTPS
     final isSecure = serverUrl.startsWith('https');
-    final transport = isSecure ? ['polling', 'websocket'] : ['websocket', 'polling'];
+    // Always try polling first for better compatibility, especially with nginx/reverse proxies
+    final transport = ['polling', 'websocket'];
     
     print('🔧 Using transports: $transport (secure: $isSecure)');
 
     _socket = IO.io(serverUrl, IO.OptionBuilder()
-      .setTransports(transport) // polling first for HTTPS, then upgrade to websocket
+      .setTransports(transport) // polling first for better compatibility
       .disableAutoConnect()
       .enableReconnection()
       .setReconnectionAttempts(5)
       .setReconnectionDelay(1000)
-      .setTimeout(15000)
+      .setTimeout(20000) // Longer timeout for production
       .enableForceNew()
       .setPath('/socket.io/') // Explicit path
-      .setExtraHeaders({'Accept': '*/*'}) // Additional headers for HTTPS
+      .setExtraHeaders({'Accept': '*/*'}) // Additional headers
       .build()
     );
 

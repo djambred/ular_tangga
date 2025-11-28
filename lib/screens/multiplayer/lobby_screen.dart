@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/socket_service.dart';
+import '../../services/api_service.dart';
 import 'waiting_room_screen.dart';
+import 'dart:math';
 
 class MultiplayerLobbyScreen extends StatefulWidget {
   final int selectedLevel;
@@ -12,24 +14,69 @@ class MultiplayerLobbyScreen extends StatefulWidget {
 }
 
 class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
-  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _roomCodeController = TextEditingController();
   final TextEditingController _serverUrlController = TextEditingController();
   final SocketService _socketService = SocketService();
   bool _isConnecting = false;
-  String _serverUrl = 'http://localhost:3000'; // Default to localhost for development
+  //String _serverUrl = 'http://localhost:3000'; // Default to localhost for development
+  String _serverUrl = 'https://apiular.ueu-fasilkom.my.id'; // Default to localhost for development
+  
+  String _playerName = 'Player'; // Will be loaded from user profile
 
   @override
   void initState() {
     super.initState();
     _serverUrlController.text = _serverUrl;
+    _loadPlayerName();
     _connectToServer();
     _setupSocketListeners();
   }
 
+  Future<void> _loadPlayerName() async {
+    try {
+      final apiService = ApiService();
+      final isLoggedIn = await apiService.isLoggedIn();
+      
+      if (!isLoggedIn) {
+        // Guest user should not be able to access multiplayer
+        // Show error and go back
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _showErrorDialog(
+              'Multiplayer hanya tersedia untuk pengguna terdaftar.\n\n'
+              'Silakan login atau daftar terlebih dahulu.',
+              redirectToAuth: true,
+            );
+          }
+        });
+        return;
+      }
+      
+      // User is logged in, get profile
+      final result = await apiService.getUserProfile();
+      if (result['success']) {
+        final userData = result['data'];
+        setState(() {
+          _playerName = userData['fullName'] ?? userData['username'] ?? 'Player';
+        });
+        print('👤 Player name loaded: $_playerName');
+      } else {
+        // Error loading profile
+        setState(() {
+          _playerName = 'Player${Random().nextInt(9999)}';
+        });
+        print('⚠️ Failed to load profile, using default name');
+      }
+    } catch (e) {
+      print('⚠️ Error loading player name: $e');
+      setState(() {
+        _playerName = 'Player${Random().nextInt(9999)}';
+      });
+    }
+  }
+
   @override
   void dispose() {
-    _nameController.dispose();
     _roomCodeController.dispose();
     _serverUrlController.dispose();
     super.dispose();
@@ -116,23 +163,16 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   }
 
   void _createRoom() {
-    final playerName = _nameController.text.trim();
-    
-    if (playerName.isEmpty) {
-      _showErrorDialog('Masukkan nama Anda terlebih dahulu');
-      return;
-    }
-
     if (!_socketService.isConnected) {
       _showErrorDialog('Tidak terhubung ke server. Silakan tunggu atau coba hubungkan ulang.');
       return;
     }
 
-    print('🎮 Creating room for: $playerName');
+    print('🎮 Creating room for: $_playerName');
     setState(() => _isConnecting = true);
     
     _socketService.createRoom(
-      playerName: playerName,
+      playerName: _playerName,
       level: widget.selectedLevel,
       maxPlayers: 4,
     );
@@ -147,14 +187,8 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   }
 
   void _joinRoom() {
-    final playerName = _nameController.text.trim();
     final roomCode = _roomCodeController.text.trim().toUpperCase();
     
-    if (playerName.isEmpty) {
-      _showErrorDialog('Masukkan nama Anda terlebih dahulu');
-      return;
-    }
-
     if (roomCode.isEmpty) {
       _showErrorDialog('Masukkan kode ruangan');
       return;
@@ -165,12 +199,12 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
       return;
     }
     
-    print('🚪 Joining room: $roomCode as $playerName');
+    print('🚪 Joining room: $roomCode as $_playerName');
     setState(() => _isConnecting = true);
 
     _socketService.joinRoom(
       roomCode: roomCode,
-      playerName: playerName,
+      playerName: _playerName,
     );
     
     // Timeout jika tidak ada response
@@ -182,16 +216,22 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     });
   }
 
-  void _showErrorDialog(String message) {
+  void _showErrorDialog(String message, {bool redirectToAuth = false}) {
     showDialog(
       context: context,
+      barrierDismissible: !redirectToAuth,
       builder: (context) => AlertDialog(
         title: const Text('Error'),
         content: Text(message),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              if (redirectToAuth) {
+                Navigator.pop(context); // Go back from lobby
+              }
+            },
+            child: Text(redirectToAuth ? 'Kembali' : 'OK'),
           ),
         ],
       ),
@@ -428,7 +468,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
 
                       const SizedBox(height: 30),
 
-                      // Name input
+                      // Player info display
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -442,29 +482,49 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                             ),
                           ],
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            const Text(
-                              'Nama Pemain',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade100,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.person,
+                                color: Colors.blue.shade700,
+                                size: 32,
                               ),
                             ),
-                            const SizedBox(height: 12),
-                            TextField(
-                              controller: _nameController,
-                              decoration: InputDecoration(
-                                hintText: 'Masukkan nama Anda',
-                                prefixIcon: const Icon(Icons.person),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                filled: true,
-                                fillColor: Colors.grey.shade100,
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Bermain Sebagai',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _playerName,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              maxLength: 20,
+                            ),
+                            Icon(
+                              Icons.check_circle,
+                              color: Colors.green.shade600,
+                              size: 28,
                             ),
                           ],
                         ),
