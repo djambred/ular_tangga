@@ -53,20 +53,36 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
       }
       
       // User is logged in, get profile
-      final result = await apiService.getProfile();
-      if (result['success']) {
-        final userData = result['data'];
-        setState(() {
-          _playerName = userData['fullName'] ?? userData['username'] ?? 'Player';
-        });
-        print('👤 Player name loaded: $_playerName');
-      } else {
-        // Error loading profile
-        setState(() {
-          _playerName = 'Player${Random().nextInt(9999)}';
-        });
-        print('⚠️ Failed to load profile, using default name');
+      try {
+        final result = await apiService.getProfile();
+        print('📊 Profile result: $result');
+        if (result['success'] && result['data'] != null) {
+          final userData = result['data'];
+          print('📊 User data: $userData');
+          final name = userData['fullName'] ?? userData['username'] ?? 'Player';
+          print('📊 Extracted name: "$name" (length: ${name.length})');
+          
+          // Validate that name is not empty or suspicious
+          if (name.isNotEmpty && name.length > 2) {
+            setState(() {
+              _playerName = name;
+            });
+            print('👤 Player name loaded: $_playerName');
+            return;
+          } else {
+            print('⚠️ Name validation failed: length=${name.length}, empty=${name.isEmpty}');
+          }
+        }
+      } catch (profileError) {
+        print('⚠️ Profile load error: $profileError');
+        // Fallback to generic name if profile load fails
       }
+      
+      // Fallback: Use generic player name
+      setState(() {
+        _playerName = 'Player${Random().nextInt(9999)}';
+      });
+      print('⚠️ Using fallback player name: $_playerName');
     } catch (e) {
       print('⚠️ Error loading player name: $e');
       setState(() {
@@ -87,12 +103,17 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     print('🔌 Connecting to server: $_serverUrl');
     _socketService.connect(_serverUrl);
     
-    // Wait for connection with longer timeout (10 seconds for production)
-    Future.delayed(const Duration(seconds: 10), () {
+    // Wait for connection with longer timeout for production
+    // Production HTTPS with nginx can take up to 30 seconds
+    final timeout = _serverUrl.startsWith('https') 
+        ? const Duration(seconds: 35) 
+        : const Duration(seconds: 15);
+    
+    Future.delayed(timeout, () {
       if (mounted) {
         setState(() => _isConnecting = false);
         if (!_socketService.isConnected) {
-          print('❌ Connection failed after 10 seconds');
+          print('❌ Connection failed after ${timeout.inSeconds} seconds');
           _showErrorDialog(
             'Gagal terhubung ke server Socket.IO\n\n'
             'URL: $_serverUrl\n\n'
