@@ -524,8 +524,9 @@ function renderGamesTable(games) {
 // Load leaderboard
 async function loadLeaderboard(sortBy = 'wins') {
     try {
-        const data = await apiGet(`/game/leaderboard?sortBy=${sortBy}&limit=20`);
-        renderLeaderboardTable(data, sortBy);
+        const res = await apiGet(`/game/leaderboard?sortBy=${sortBy}&limit=20`);
+        const players = res?.data || [];
+        renderLeaderboardTable(players, sortBy);
     } catch (error) {
         console.error('Load leaderboard error:', error);
     }
