@@ -115,8 +115,8 @@ class _GameModeSelectionScreenState extends State<GameModeSelectionScreen> {
                       gradient: LinearGradient(
                         colors: [Colors.green.shade400, Colors.green.shade600],
                       ),
-                      onTap: () {
-                        Navigator.pushReplacement(
+                      onTap: () async {
+                        final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => GameScreen(
@@ -125,6 +125,10 @@ class _GameModeSelectionScreenState extends State<GameModeSelectionScreen> {
                             ),
                           ),
                         );
+                        // If game was won or exited, return refresh signal to level selection
+                        if (result == true && context.mounted) {
+                          Navigator.of(context).pop(true);
+                        }
                       },
                     ),
 

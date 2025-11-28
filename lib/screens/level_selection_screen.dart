@@ -313,8 +313,8 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
                   child: ElevatedButton(
                     onPressed: (!_isGuest && selectedLevel > highestLevel)
                         ? null
-                        : () {
-                            Navigator.pushReplacement(
+                        : () async {
+                            final result = await Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => GameModeSelectionScreen(
@@ -322,6 +322,10 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
                                 ),
                               ),
                             );
+                            // If returned with refresh signal, reload progress
+                            if (result == true && mounted) {
+                              await _loadUserProgress();
+                            }
                           },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green.shade600,

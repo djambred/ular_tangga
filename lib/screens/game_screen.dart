@@ -304,46 +304,67 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       // Get current player position
       final playerPosition = players.isNotEmpty ? players[0].position : 0;
       
-      // Prepare game history data
+      // Calculate score based on performance
+      int score = 0;
+      if (isWinner) {
+        // Base score for winning
+        score = 1000;
+        // Bonus for completing quizzes
+        score += completedQuizzes.length * 100;
+        // Bonus for time remaining (up to 500 points)
+        score += (remainingSeconds * 500 / gameDurationSeconds).round();
+        // Bonus for fewer moves (efficiency)
+        if (moveCount > 0) {
+          score += (1000 / moveCount).round();
+        }
+      }
+      
+      // Check if user is logged in
+      final isLoggedIn = await _apiService.isLoggedIn();
+      if (!isLoggedIn) {
+        print('User not logged in, game history not saved');
+        return;
+      }
+      
+      // Get user profile
+      final profile = await _apiService.getProfile();
+      if (profile['success'] != true || profile['data'] == null) {
+        print('Failed to get user profile');
+        return;
+      }
+      
+      final userData = profile['data'] as Map<String, dynamic>;
+      
+      // Prepare game history data with userId
       final Map<String, dynamic> gameData = {
         'gameMode': 'single',
         'level': widget.requiredQuizzes,
         'players': [
           {
-            'username': 'Guest', // Will be updated if user is logged in
+            'userId': userData['_id'], // IMPORTANT: Add userId for server to update stats
+            'username': userData['username'],
             'finalPosition': playerPosition,
             'quizzesAnswered': completedQuizzes.length,
-            'quizzesCorrect': completedQuizzes.length, // Assuming all completed are correct
+            'quizzesCorrect': completedQuizzes.length,
             'isWinner': isWinner,
             'playTime': playTime,
+            'score': score, // Add calculated score
           }
         ],
         'quizzes': completedQuizzes.toList(),
         'duration': playTime,
       };
       
-      // Check if user is logged in
-      final isLoggedIn = await _apiService.isLoggedIn();
-      if (isLoggedIn) {
-        // Get user profile
-        final profile = await _apiService.getProfile();
-        if (profile['success'] == true && profile['data'] != null) {
-          final players = gameData['players'] as List;
-          final firstPlayer = players[0] as Map<String, dynamic>;
-          final userData = profile['data'] as Map<String, dynamic>;
-          firstPlayer['username'] = userData['username'];
-        }
-        
-        // Save to backend
-        final result = await _apiService.saveGameHistory(gameData);
-        if (result['success'] == true) {
-          print('Game history saved successfully');
-        }
+      // Save to backend
+      final result = await _apiService.saveGameHistory(gameData);
+      if (result['success'] == true) {
+        print('✅ Game history saved successfully with score: $score');
+        print('✅ Level ${widget.requiredQuizzes} completed, should unlock level ${widget.requiredQuizzes + 1}');
       } else {
-        print('User not logged in, game history not saved');
+        print('❌ Failed to save game history: ${result['message']}');
       }
     } catch (e) {
-      print('Error saving game history: $e');
+      print('❌ Error saving game history: $e');
       // Don't show error to user, just log it
     }
   }
@@ -676,12 +697,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         _showWinDialog();
         return;
       } else {
-        // Belum menyelesaikan semua kuis
+        // Belum menyelesaikan semua kuis - kembali ke posisi sebelumnya
         await Future.delayed(const Duration(milliseconds: 500));
-        _showIncompleteQuizDialog();
         setState(() {
+          player.position = startPosition; // Kembali ke posisi awal
           isRolling = false;
         });
+        _showIncompleteQuizDialog();
         return;
       }
     }
@@ -704,12 +726,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           _showLadderWinDialog();
           return;
         } else {
-          // Belum menyelesaikan kuis sesuai level
+          // Belum menyelesaikan kuis sesuai level - kembali ke bawah tangga
           await Future.delayed(const Duration(milliseconds: 500));
-          _showIncompleteQuizDialog();
           setState(() {
+            player.position = finalPosition; // Kembali ke posisi sebelum naik tangga
             isRolling = false;
           });
+          _showIncompleteQuizDialog();
           return;
         }
       }
@@ -1401,7 +1424,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.of(context).pop(); // Close dialog
-                      Navigator.of(context).pop(); // Return to previous screen
+                      Navigator.of(context).pop(true); // Return with refresh signal
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red.shade600,
@@ -1607,8 +1630,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   void _showWinDialog() {
     gameTimer?.cancel();
     
-    // Save game history
-    _saveGameHistory(isWinner: true);
+    // Save game history and wait for completion
+    _saveGameHistory(isWinner: true).then((_) {
+      // Notify that data should be refreshed
+      print('💾 Game saved, level should be unlocked now');
+    });
     
     showDialog(
       context: context,
@@ -1752,8 +1778,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   height: 56,
                   child: OutlinedButton(
                     onPressed: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).pop(); // Kembali ke home/level selection
+                      Navigator.of(context).pop(); // Close dialog
+                      Navigator.of(context).pop(true); // Return with refresh signal
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.grey.shade700,
@@ -1790,8 +1816,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   void _showLadderWinDialog() {
     gameTimer?.cancel();
     
-    // Save game history (won by ladder)
-    _saveGameHistory(isWinner: true);
+    // Save game history (won by ladder) and wait for completion
+    _saveGameHistory(isWinner: true).then((_) {
+      print('💾 Game saved via ladder win, level should be unlocked now');
+    });
     
     showDialog(
       context: context,
@@ -1935,8 +1963,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   height: 56,
                   child: OutlinedButton(
                     onPressed: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).pop(); // Kembali ke home/level selection
+                      Navigator.of(context).pop(); // Close dialog
+                      Navigator.of(context).pop(true); // Return with refresh signal
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.grey.shade700,
@@ -1992,6 +2020,197 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     });
     
     _startTimer();
+  }
+
+  Future<void> _handleExit() async {
+    // Pause the game timer during dialog
+    final wasPaused = isTimeUp;
+    gameTimer?.cancel();
+    
+    final shouldExit = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          elevation: 24,
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Colors.orange.shade50, Colors.red.shade50],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Colors.orange.shade300,
+                width: 3,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.orange.withOpacity(0.5),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [Colors.orange.shade400, Colors.red.shade400],
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.exit_to_app_rounded,
+                    color: Colors.white,
+                    size: 48,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'KELUAR DARI GAME?',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange.shade800,
+                    letterSpacing: 1,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.orange.shade200,
+                      width: 2,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Keluar sekarang akan dihitung sebagai kekalahan dan mempengaruhi statistik kamu.',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade800,
+                          height: 1.5,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          Column(
+                            children: [
+                              Icon(Icons.my_location, color: Colors.blue.shade700, size: 20),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Posisi: ${players[0].position}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Column(
+                            children: [
+                              Icon(Icons.quiz, color: Colors.purple.shade700, size: 20),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Kuis: ${completedQuizzes.length}/10',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.grey.shade700,
+                          side: BorderSide(color: Colors.grey.shade400, width: 2),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text(
+                          'LANJUTKAN',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red.shade600,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          elevation: 8,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text(
+                          'KELUAR',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (shouldExit == true) {
+      // Save game as loss before exiting
+      await _saveGameHistory(isWinner: false);
+      
+      if (mounted) {
+        Navigator.of(context).pop(true); // Return with refresh signal
+      }
+    } else {
+      // Resume timer if not exiting and game not over
+      if (!wasPaused && !isTimeUp && winner == null) {
+        _startTimer();
+      }
+    }
   }
 
   Widget _buildBoard() {
@@ -2318,40 +2537,58 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 child: Column(
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Colors.blue.shade400, Colors.blue.shade600],
-                            ),
-                            borderRadius: BorderRadius.circular(12),
+                        // Exit Button
+                        IconButton(
+                          onPressed: _handleExit,
+                          icon: const Icon(Icons.close_rounded),
+                          color: Colors.red.shade700,
+                          tooltip: 'Keluar',
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.red.shade50,
+                            padding: const EdgeInsets.all(8),
                           ),
-                          child: const Icon(Icons.videogame_asset, color: Colors.white, size: 24),
                         ),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Ular Tangga TBC',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue.shade900,
-                                letterSpacing: 0.5,
+                        Expanded(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [Colors.blue.shade400, Colors.blue.shade600],
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(Icons.videogame_asset, color: Colors.white, size: 24),
                               ),
-                            ),
-                            Text(
-                              'Game Edukasi Kesehatan',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.blue.shade600,
+                              const SizedBox(width: 12),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Ular Tangga TBC',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue.shade900,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Game Edukasi Kesehatan',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.blue.shade600,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 48), // Balance the exit button
                       ],
                     ),
                     const SizedBox(height: 12),

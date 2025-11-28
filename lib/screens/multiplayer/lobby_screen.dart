@@ -17,7 +17,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   final TextEditingController _serverUrlController = TextEditingController();
   final SocketService _socketService = SocketService();
   bool _isConnecting = false;
-  String _serverUrl = 'https://apiular.ueu-fasilkom.my.id'; // Production server URL
+  String _serverUrl = 'http://localhost:3000'; // Default to localhost for development
 
   @override
   void initState() {
