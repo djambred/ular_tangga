@@ -1067,28 +1067,80 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> with Tick
               decoration: BoxDecoration(
                 gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.white.withOpacity(0.95), Colors.white.withOpacity(0.9)]),
               ),
-              child: winner == null ? Center(
-                child: GestureDetector(
-                  onTap: isRolling ? null : _rollDice,
-                  child: ScaleTransition(
-                    scale: isRolling ? _pulseAnimation : const AlwaysStoppedAnimation(1.0),
-                    child: Container(
-                      width: 120, height: 120,
+              child: winner == null ? Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // "YOUR TURN" indicator for multiplayer
+                  if (widget.isSocketBased && _isMyTurn)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: isRolling
-                          ? [Colors.grey.shade400, Colors.grey.shade600]
-                          : [players[currentPlayerIndex].color.withOpacity(0.6), players[currentPlayerIndex].color]),
-                        borderRadius: BorderRadius.circular(30),
-                        boxShadow: [BoxShadow(color: (isRolling ? Colors.grey : players[currentPlayerIndex].color).withOpacity(0.5), blurRadius: 20, offset: const Offset(0,8))],
-                        border: Border.all(color: Colors.white, width:4),
+                        gradient: LinearGradient(
+                          colors: [Colors.green.shade400, Colors.green.shade600],
+                        ),
+                        borderRadius: BorderRadius.circular(25),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.green.withOpacity(0.4),
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                        border: Border.all(color: Colors.white, width: 2),
                       ),
-                      child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        const Icon(Icons.casino_rounded, size:60, color: Colors.white), const SizedBox(height:8),
-                        Text(isRolling ? 'TUNGGU...' : 'LEMPAR ${players[currentPlayerIndex].name.split(' ').last}', style: const TextStyle(fontSize:14,fontWeight:FontWeight.bold,color:Colors.white,letterSpacing:1)),
-                      ])),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.touch_app_rounded, color: Colors.white, size: 20),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'YOUR TURN',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  // Dice button
+                  Center(
+                    child: GestureDetector(
+                      onTap: isRolling ? null : _rollDice,
+                      child: ScaleTransition(
+                        scale: isRolling ? _pulseAnimation : const AlwaysStoppedAnimation(1.0),
+                        child: Container(
+                          width: 120, height: 120,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: isRolling
+                              ? [Colors.grey.shade400, Colors.grey.shade600]
+                              : (widget.isSocketBased && !_isMyTurn)
+                                ? [Colors.grey.shade300, Colors.grey.shade500] // Disabled look
+                                : [players[currentPlayerIndex].color.withOpacity(0.6), players[currentPlayerIndex].color]),
+                            borderRadius: BorderRadius.circular(30),
+                            boxShadow: [BoxShadow(color: (isRolling ? Colors.grey : players[currentPlayerIndex].color).withOpacity(0.5), blurRadius: 20, offset: const Offset(0,8))],
+                            border: Border.all(color: Colors.white, width:4),
+                          ),
+                          child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            const Icon(Icons.casino_rounded, size:60, color: Colors.white), 
+                            const SizedBox(height:8),
+                            Text(
+                              isRolling 
+                                ? 'TUNGGU...' 
+                                : (widget.isSocketBased && !_isMyTurn)
+                                  ? 'BUKAN GILIRAN'
+                                  : 'LEMPAR',
+                              style: const TextStyle(fontSize:14,fontWeight:FontWeight.bold,color:Colors.white,letterSpacing:1),
+                            ),
+                          ])),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
               ) : Column(mainAxisSize: MainAxisSize.min, children: [
                 Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.amber.shade200, Colors.amber.shade400]), shape: BoxShape.circle), child: const Icon(Icons.emoji_events_rounded, size:64, color: Colors.white)),
                 const SizedBox(height: 16),

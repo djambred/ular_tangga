@@ -1399,7 +1399,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       diceValue = null;
       moveCount = 0;
       completedQuizzes.clear();
-      currentPlayerIndex = 0;
       
       // Reset player positions
       for (var player in players) {
@@ -1416,8 +1415,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       infoMessage = 'Permainan dimulai ulang!';
     });
     
-    // Regenerate board
-    _generateRandomBoard();
+    // Regenerate board with new layout
+    _generateRandomSnakesAndLadders();
     
     // Start new timer
     _startTimer();
