@@ -53,7 +53,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
       }
       
       // User is logged in, get profile
-      final result = await apiService.getUserProfile();
+      final result = await apiService.getProfile();
       if (result['success']) {
         final userData = result['data'];
         setState(() {
