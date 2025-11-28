@@ -1387,6 +1387,44 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
+  void _restartGame() {
+    // Cancel any running timer
+    gameTimer?.cancel();
+    
+    setState(() {
+      // Reset all game state
+      winner = null;
+      isTimeUp = false;
+      isRolling = false;
+      diceValue = null;
+      moveCount = 0;
+      completedQuizzes.clear();
+      currentPlayerIndex = 0;
+      
+      // Reset player positions
+      for (var player in players) {
+        player.position = 0;
+      }
+      
+      // Reset timer
+      final random = Random();
+      gameDurationSeconds = 300 + random.nextInt(121); // 5-7 minutes
+      remainingSeconds = gameDurationSeconds;
+      
+      // Reset messages
+      showInfo = true;
+      infoMessage = 'Permainan dimulai ulang!';
+    });
+    
+    // Regenerate board
+    _generateRandomBoard();
+    
+    // Start new timer
+    _startTimer();
+    
+    print('🔄 Game restarted');
+  }
+  
   void _showTimeUpDialog() {
     gameTimer?.cancel();
     
@@ -1495,22 +1533,57 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   ),
                 ),
                 const SizedBox(height: 24),
+                // Restart button
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.of(context).pop(); // Close dialog
-                      Navigator.of(context).pop(true); // Return with refresh signal
+                      _restartGame();
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red.shade600,
+                      backgroundColor: Colors.blue.shade600,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
                       elevation: 8,
-                      shadowColor: Colors.red.withOpacity(0.5),
+                      shadowColor: Colors.blue.withOpacity(0.5),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.replay_rounded, size: 24),
+                        SizedBox(width: 8),
+                        Text(
+                          'MULAI ULANG',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Back to menu button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Close dialog
+                      Navigator.of(context).pop(true); // Return with refresh signal
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red.shade700,
+                      side: BorderSide(color: Colors.red.shade400, width: 2),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -1663,29 +1736,65 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   ),
                 ),
                 const SizedBox(height: 24),
+                // Restart button
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.of(context).pop();
+                      _restartGame();
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange.shade600,
+                      backgroundColor: Colors.blue.shade600,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
                       elevation: 8,
-                      shadowColor: Colors.orange.withOpacity(0.5),
+                      shadowColor: Colors.blue.withOpacity(0.5),
                     ),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.cancel_rounded, size: 24),
+                        Icon(Icons.replay_rounded, size: 24),
                         SizedBox(width: 8),
                         Text(
-                          'KEMBALI',
+                          'MULAI ULANG',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Back button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).pop(true); // Return to level selection
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.orange.shade700,
+                      side: BorderSide(color: Colors.orange.shade400, width: 2),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.home_rounded, size: 24),
+                        SizedBox(width: 8),
+                        Text(
+                          'KEMBALI KE MENU',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

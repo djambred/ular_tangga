@@ -9,6 +9,9 @@ class SocketService {
   bool _isConnected = false;
 
   bool get isConnected => _isConnected;
+  
+  // Get current socket ID
+  String? get socketId => _socket?.id;
 
   // Connect to server
   void connect(String serverUrl) {

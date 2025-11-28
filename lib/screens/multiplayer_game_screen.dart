@@ -186,25 +186,39 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> with Tick
     // Initialize players from socket room data
     final room = widget.roomData as Map<String, dynamic>;
     final roomPlayers = room['players'] as List<dynamic>;
-    final mySocketId = _socketService.isConnected ? 'socket_id' : null; // Get from socket
+    final mySocketId = _socketService.socketId; // Get actual socket ID
+    
+    print('🎮 Initializing socket players:');
+    print('   My Socket ID: $mySocketId');
+    print('   Room Players: $roomPlayers');
     
     final colors = [Colors.blue, Colors.red, Colors.green, Colors.orange];
     players = [];
     for (int i = 0; i < roomPlayers.length; i++) {
       final p = roomPlayers[i] as Map<String, dynamic>;
+      final playerSocketId = p['socketId'] ?? p['id'];
       players.add(Player(
         id: i + 1,
         name: p['name'] ?? 'Pemain ${i + 1}',
         color: colors[i % colors.length],
       ));
-      if (p['socketId'] == mySocketId) {
+      
+      print('   Player ${i + 1}: ${p['name']} (socketId: $playerSocketId)');
+      
+      if (playerSocketId == mySocketId) {
         _myPlayerId = (i + 1).toString();
+        print('   ✅ Found my player: Player ${i + 1}');
       }
     }
     
     currentPlayerIndex = room['currentPlayerIndex'] ?? 0;
     showInfo = true;
     infoMessage = _isMyTurn ? 'Giliran Anda!' : 'Giliran ${players[currentPlayerIndex].name}';
+    
+    print('🎯 Turn Info:');
+    print('   Current Player Index: $currentPlayerIndex');
+    print('   My Player ID: $_myPlayerId');
+    print('   Is My Turn: $_isMyTurn');
   }
 
   void _setupSocketListeners() {
