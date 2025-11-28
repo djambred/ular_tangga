@@ -30,6 +30,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   late List<Player> players;
   int? diceValue;
   bool isRolling = false;
+  // Single player only screen (multiplayer separated into multiplayer_game_screen.dart)
   String infoMessage = '';
   bool showInfo = false;
   Player? winner;
@@ -166,6 +167,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   bool _isLoadingBoard = true;
 
   @override
+  @override
   void initState() {
     super.initState();
     requiredQuizCount = widget.requiredQuizzes;
@@ -184,17 +186,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-    
-    _bounceAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
-      CurvedAnimation(parent: _bounceController, curve: Curves.elasticOut),
-    );
+    _bounceAnimation = CurvedAnimation(parent: _bounceController, curve: Curves.elasticOut);
 
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     )..repeat(reverse: true);
-    
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
   }
@@ -230,9 +228,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _initPlayers() {
-    players = [
-      Player(id: 1, name: 'Pemain', color: Colors.blue),
-    ];
+    // Single player only
+    players = [Player(id: 1, name: 'Pemain', color: Colors.blue)];
   }
 
   Future<void> _loadContent() async {
@@ -301,42 +298,47 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     try {
       final playTime = gameDurationSeconds - remainingSeconds;
       
-      // Get current player position
-      final playerPosition = players.isNotEmpty ? players[0].position : 0;
+      // Positions per player
+      final p1Pos = players.isNotEmpty ? players[0].position : 0;
+      final bool isMP = (widget.mode == 'multiplayer' || widget.isSinglePlayer == false) && players.length > 1;
+      final p2Pos = isMP ? players[1].position : 0;
       
-      // Calculate score based on performance
-      int score = 0;
-      if (isWinner) {
-        // Base score for winning
-        score = 1000;
-        // Bonus for completing quizzes
-        score += completedQuizzes.length * 100;
-        // Bonus for time remaining (up to 500 points)
-        score += (remainingSeconds * 500 / gameDurationSeconds).round();
-        // Bonus for fewer moves (efficiency)
-        if (moveCount > 0) {
-          score += (1000 / moveCount).round();
-        }
-      } else {
-        // Partial score for not winning
-        // Base on progress and quizzes completed
-        score = (playerPosition * 10) + (completedQuizzes.length * 50);
+      // Winner resolution (in multiplayer read state.winner)
+      final Player? winPlayer = winner;
+      final bool p1Win = winPlayer != null ? winPlayer.id == 1 : isWinner;
+      final bool p2Win = winPlayer != null ? winPlayer.id == 2 : false;
+
+      int calcScore({required bool won, required int pos}) {
+        // Skor maksimal 100 per level, dikali dengan level
+        // Level 1: 1 kuis benar = 10 poin, maksimal 100 poin
+        // Level 2: 1 kuis benar = 20 poin, maksimal 200 poin
+        // Level 3: 1 kuis benar = 30 poin, maksimal 300 poin
+        // dst...
+        int pointPerQuiz = 10 * widget.level;
+        int maxScore = 100 * widget.level;
+        int score = (completedQuizzes.length * pointPerQuiz).clamp(0, maxScore);
+        return score;
       }
+
+      final p1Score = calcScore(won: p1Win, pos: p1Pos);
+      final p2Score = isMP ? calcScore(won: p2Win, pos: p2Pos) : 0;
       
       print('═══════════════════════════════════════');
       print('💾 GAME STATS - Before Save:');
-      print('   Winner: $isWinner');
+      print('   Winner: ${winPlayer != null ? winPlayer.name : (isWinner ? 'Pemain 1' : 'Tidak')}');
       print('   Level: ${widget.level}');
       print('   Mode: ${widget.mode}');
-      print('   Position: $playerPosition/$boardSize');
+      print('   Pos P1: $p1Pos/$boardSize');
+      if (isMP) print('   Pos P2: $p2Pos/$boardSize');
       print('   Quizzes: ${completedQuizzes.length}');
       print('   Time: $playTime seconds');
       print('   Moves: $moveCount');
-      print('   Score: $score');
+      print('   Score P1: $p1Score');
+      if (isMP) print('   Score P2: $p2Score');
       print('═══════════════════════════════════════');
       
       // Validation
-      if (!isWinner) {
+      if (!(winPlayer != null || isWinner)) {
         print('⚠️ Player did not win, will not unlock level');
       } else {
         print('✅ Player won! Should unlock level: ${widget.level + 1}');
@@ -374,22 +376,35 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       final startedAt = endedAt.subtract(Duration(seconds: playTime));
       final String gameId = DateTime.now().millisecondsSinceEpoch.toString();
 
+      // Build players payload
+      final List<Map<String, dynamic>> playersPayload = [];
+      playersPayload.add({
+        'userId': userId,
+        'username': userData['username'] ?? 'Unknown',
+        'finalPosition': p1Pos,
+        'quizzesAnswered': completedQuizzes.length,
+        'quizzesCorrect': completedQuizzes.length,
+        'isWinner': p1Win,
+        'playTime': playTime,
+        'score': p1Score,
+      });
+      if (isMP) {
+        playersPayload.add({
+          'username': 'Pemain 2',
+          'finalPosition': p2Pos,
+          'quizzesAnswered': completedQuizzes.length,
+          'quizzesCorrect': completedQuizzes.length,
+          'isWinner': p2Win,
+          'playTime': playTime,
+          'score': p2Score,
+        });
+      }
+
       final Map<String, dynamic> gameData = {
         'gameId': gameId,
         'gameMode': widget.mode, // Use actual mode: 'single' or 'multiplayer'
         'level': widget.level,  // Use actual level number
-        'players': [
-          {
-            'userId': userId,
-            'username': userData['username'] ?? 'Unknown',
-            'finalPosition': playerPosition,
-            'quizzesAnswered': completedQuizzes.length,
-            'quizzesCorrect': completedQuizzes.length,
-            'isWinner': isWinner,
-            'playTime': playTime,
-            'score': score,
-          }
-        ],
+        'players': playersPayload,
         // Send empty quizzes array to match backend schema shape (optional field)
         'quizzes': [],
         'startedAt': startedAt.toIso8601String(),
@@ -402,8 +417,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       print('   GameMode: ${gameData['gameMode']}');
       print('   Level: ${gameData['level']}');
       print('   UserId: $userId');
-      print('   Score: $score');
-      print('   Winner: $isWinner');
+      print('   Players: ${playersPayload.length}');
+      print('   Winner: ${p1Win ? 'P1' : (p2Win ? 'P2' : 'None')}');
       print('   Full Data: $gameData');
       print('─────────────────────────────────────');
       
@@ -857,9 +872,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
     // Set isRolling = false setelah dialog ditutup
     await Future.delayed(const Duration(milliseconds: 500));
-    setState(() {
-      isRolling = false;
-    });
+    setState(() { isRolling = false; });
   }
 
   void _showEducationDialog({
@@ -1936,7 +1949,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  '✨ SEMPURNA! ✨',
+                  (winner != null && (widget.mode == 'multiplayer' || widget.isSinglePlayer == false))
+                      ? '✨ ${winner!.name} MENANG! ✨'
+                      : '✨ SEMPURNA! ✨',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -2315,7 +2330,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             final isQuiz = quizPositions.contains(position);
             final isFinish = position == boardSize;
             final isStart = position == 1;
-            final playerHere = players[0].position == position;
+            final playersHere = players.where((p) => p.position == position).toList();
+            final bool anyPlayerHere = playersHere.isNotEmpty;
 
             Color bgColor = Colors.white;
             Color borderColor = Colors.grey.shade300;
@@ -2344,13 +2360,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             return AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               decoration: BoxDecoration(
-                gradient: playerHere
+                gradient: anyPlayerHere
                     ? LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          Colors.blue.shade200,
-                          Colors.blue.shade400,
+                          Colors.blue.shade200.withOpacity(0.6),
+                          Colors.blue.shade400.withOpacity(0.6),
                         ],
                       )
                     : LinearGradient(
@@ -2359,11 +2375,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                         colors: [bgColor, bgColor],
                       ),
                 border: Border.all(
-                  color: playerHere ? Colors.blue.shade700 : borderColor,
-                  width: playerHere ? 2.5 : 1,
+                  color: anyPlayerHere ? Colors.blue.shade700 : borderColor,
+                  width: anyPlayerHere ? 2.0 : 1,
                 ),
                 borderRadius: BorderRadius.circular(6),
-                boxShadow: playerHere
+                boxShadow: anyPlayerHere
                     ? [
                         BoxShadow(
                           color: Colors.blue.withOpacity(0.6),
@@ -2388,7 +2404,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
                         decoration: BoxDecoration(
-                          color: playerHere 
+                          color: anyPlayerHere 
                               ? Colors.white.withOpacity(0.9) 
                               : Colors.black.withOpacity(0.05),
                           borderRadius: BorderRadius.circular(4),
@@ -2397,7 +2413,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                           '$position',
                           style: TextStyle(
                             fontSize: cellSize * 0.22,
-                            color: playerHere ? Colors.blue.shade900 : Colors.grey.shade700,
+                            color: anyPlayerHere ? Colors.blue.shade900 : Colors.grey.shade700,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -2482,38 +2498,41 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     ),
                   ),
                   
-                  // Player position
-                  if (playerHere)
+                  // Players' pawns (support multiple)
+                  if (anyPlayerHere)
                     Center(
                       child: ScaleTransition(
                         scale: _bounceAnimation,
-                        child: Container(
-                          width: cellSize * 0.65,
-                          height: cellSize * 0.65,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Colors.white,
-                                Colors.blue.shade100,
-                              ],
-                            ),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 3),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.blue.withOpacity(0.5),
-                                blurRadius: 8,
-                                spreadRadius: 2,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: List.generate(playersHere.length, (i) {
+                            final p = playersHere[i];
+                            final bubbleSize = playersHere.length == 1 ? cellSize * 0.65 : cellSize * 0.5;
+                            return Padding(
+                              padding: EdgeInsets.symmetric(horizontal: playersHere.length == 1 ? 0 : 4),
+                              child: Container(
+                                width: bubbleSize,
+                                height: bubbleSize,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: p.color, width: 3),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: p.color.withOpacity(0.5),
+                                      blurRadius: 8,
+                                      spreadRadius: 1,
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  Icons.person_rounded,
+                                  color: p.color,
+                                  size: bubbleSize * 0.6,
+                                ),
                               ),
-                            ],
-                          ),
-                          child: Icon(
-                            Icons.person_rounded,
-                            color: Colors.blue.shade700,
-                            size: cellSize * 0.4,
-                          ),
+                            );
+                          }),
                         ),
                       ),
                     ),
@@ -2674,11 +2693,24 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                           label: _formatTime(remainingSeconds),
                           color: remainingSeconds < 60 ? Colors.red : Colors.purple,
                         ),
-                        _buildStatChip(
-                          icon: Icons.my_location_rounded,
-                          label: '${players[0].position}/$boardSize',
-                          color: Colors.blue,
-                        ),
+                        if (players.length == 1)
+                          _buildStatChip(
+                            icon: Icons.my_location_rounded,
+                            label: '${players[0].position}/$boardSize',
+                            color: Colors.blue,
+                          )
+                        else ...[
+                          _buildStatChip(
+                            icon: Icons.looks_one_rounded,
+                            label: 'P1 ${players[0].position}/$boardSize',
+                            color: Colors.blue,
+                          ),
+                          _buildStatChip(
+                            icon: Icons.looks_two_rounded,
+                            label: 'P2 ${players[1].position}/$boardSize',
+                            color: Colors.red,
+                          ),
+                        ],
                         _buildStatChip(
                           icon: Icons.quiz_rounded,
                           label: '${completedQuizzes.length}/10',
@@ -2709,8 +2741,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: (winner != null ? Colors.green : Colors.blue)
-                            .withOpacity(0.3),
+                        color: (winner != null ? Colors.green : Colors.blue).withOpacity(0.3),
                         blurRadius: 15,
                         offset: const Offset(0, 5),
                       ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/socket_service.dart';
-import '../game_screen.dart';
+import '../multiplayer_game_screen.dart';
 
 class WaitingRoomScreen extends StatefulWidget {
   final String roomCode;
@@ -74,10 +74,11 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => GameScreen(
+            builder: (context) => MultiplayerGameScreen(
               requiredQuizzes: widget.selectedLevel,
-              isSinglePlayer: false,
+              level: widget.selectedLevel,
               roomData: data['room'],
+              isSocketBased: true,
             ),
           ),
         );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'mode_selection_screen.dart';
+import 'multiplayer/lobby_screen.dart';
 
 class LevelSelectionScreen extends StatefulWidget {
   const LevelSelectionScreen({Key? key}) : super(key: key);
@@ -96,28 +97,6 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Back button
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.black87),
-                      onPressed: () {
-                        Navigator.of(context).pushReplacementNamed('/auth');
-                      },
-                    ),
-                    const Text(
-                      'Kembali ke Login',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
               // Header
               Container(
                 width: double.infinity,

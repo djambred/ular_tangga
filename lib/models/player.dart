@@ -4,7 +4,7 @@ class Player {
   final int id;
   final String name;
   int position;
-  final Color color;
+  final MaterialColor color;
 
   Player({
     required this.id,
