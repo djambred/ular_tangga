@@ -22,6 +22,15 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
     _loadUserProgress();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh when returning to this screen
+      print('🔄 Level Selection resumed - refreshing user progress');
+      _loadUserProgress();
+    }
+  }
+
   Future<void> _loadUserProgress() async {
     setState(() => _isLoading = true);
     
@@ -34,9 +43,15 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
         if (result['success'] && result['data'] != null) {
           final userData = result['data'];
           final stats = userData['statistics'] ?? {};
+          final newHighestLevel = stats['highestLevel'] ?? 1;
+          
+          print('📊 Level Selection loaded:');
+          print('   Highest Level: $newHighestLevel');
+          print('   Stats: $stats');
+          
           setState(() {
-            highestLevel = stats['highestLevel'] ?? 1;
-            selectedLevel = highestLevel;
+            highestLevel = newHighestLevel;
+            selectedLevel = 1; // Always start from level 1 for selection
             _isGuest = false;
             _isLoading = false;
           });
@@ -47,15 +62,17 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
       // Guest mode - all levels unlocked
       setState(() {
         _isGuest = true;
-        highestLevel = 5; // Guest can access all levels
+        highestLevel = 10; // Guest can access all levels
+        selectedLevel = 1;
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading user progress: $e');
+      print('❌ Error loading user progress: $e');
       // On error, assume guest mode
       setState(() {
         _isGuest = true;
-        highestLevel = 5;
+        highestLevel = 10;
+        selectedLevel = 1;
         _isLoading = false;
       });
     }

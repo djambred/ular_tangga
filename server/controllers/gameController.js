@@ -11,42 +11,79 @@ exports.saveGameHistory = async (req, res) => {
       if (player.userId) {
         const playerScore = player.score || 0;
         const currentLevel = req.body.level;
+        const isWinner = player.isWinner || false;
         
+        console.log(`\n📝 Processing player: ${player.userId}`);
+        console.log(`   Level: ${currentLevel}, Winner: ${isWinner}, Score: ${playerScore}`);
+        
+        // Increment counters
         const updateData = {
           $inc: {
             'statistics.totalGames': 1,
-            'statistics.totalWins': player.isWinner ? 1 : 0,
-            'statistics.totalLosses': !player.isWinner ? 1 : 0,
-            'statistics.totalQuizzesAnswered': player.quizzesAnswered,
-            'statistics.totalQuizzesCorrect': player.quizzesCorrect,
-            'statistics.totalPlayTime': player.playTime,
+            'statistics.totalWins': isWinner ? 1 : 0,
+            'statistics.totalLosses': isWinner ? 0 : 1,
+            'statistics.totalQuizzesAnswered': player.quizzesAnswered || 0,
+            'statistics.totalQuizzesCorrect': player.quizzesCorrect || 0,
+            'statistics.totalPlayTime': player.playTime || 0,
             'statistics.totalScore': playerScore // Accumulate total score
           }
         };
         
-        // Update highest score and unlock next level
-        const maxUpdate = {};
+        // Use set operation if values are higher (more reliable than $max)
+        const setUpdate = {};
         
-        // Update highest score if current score is higher
-        if (playerScore > 0) {
-          maxUpdate['statistics.highestScore'] = playerScore;
+        // Only update highest score if current score is higher
+        const user = await User.findById(player.userId);
+        if (!user) {
+          console.log(`   ❌ User not found!`);
+          continue;
         }
         
-        // Only unlock next level if player wins
-        if (player.isWinner) {
-          // Unlock next level - player can access level after current level
+        const currentHighestScore = user.statistics.highestScore || 0;
+        const currentHighestLevel = user.statistics.highestLevel || 1;
+        
+        console.log(`   Current stats - Level: ${currentHighestLevel}, Score: ${currentHighestScore}`);
+        
+        // Update highest score
+        if (playerScore > currentHighestScore) {
+          setUpdate['statistics.highestScore'] = playerScore;
+          console.log(`   ⬆️ New highest score: ${playerScore}`);
+        }
+        
+        // Unlock next level if player wins
+        if (isWinner) {
           const nextLevel = currentLevel + 1;
-          maxUpdate['statistics.highestLevel'] = nextLevel;
-          console.log(`✅ Unlock level: ${nextLevel} (player won level ${currentLevel})`);
+          if (nextLevel > currentHighestLevel) {
+            setUpdate['statistics.highestLevel'] = nextLevel;
+            console.log(`   🎉 UNLOCK Level ${nextLevel}!`);
+          } else {
+            console.log(`   ℹ️ Level ${nextLevel} already unlocked`);
+          }
+        } else {
+          console.log(`   ❌ Player lost - no level unlock`);
         }
         
-        if (Object.keys(maxUpdate).length > 0) {
-          updateData.$max = maxUpdate;
+        // Add set operations if any
+        if (Object.keys(setUpdate).length > 0) {
+          updateData.$set = setUpdate;
         }
         
-        console.log(`📊 Updating player ${player.userId}:`, JSON.stringify(updateData, null, 2));
+        console.log(`   📊 Update operations:`, JSON.stringify(updateData, null, 2));
+        
+        // Execute update
         const result = await User.findByIdAndUpdate(player.userId, updateData, { new: true });
-        console.log(`✅ Updated stats:`, result.statistics);
+        
+        if (result) {
+          console.log(`   ✅ Updated! New stats:`, {
+            totalGames: result.statistics.totalGames,
+            totalWins: result.statistics.totalWins,
+            totalScore: result.statistics.totalScore,
+            highestScore: result.statistics.highestScore,
+            highestLevel: result.statistics.highestLevel
+          });
+        } else {
+          console.log(`   ❌ Update failed - user not found after update`);
+        }
       }
     }
 

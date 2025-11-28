@@ -198,20 +198,33 @@ class ApiService {
   Future<Map<String, dynamic>> saveGameHistory(Map<String, dynamic> gameData) async {
     try {
       await loadToken();
+      print('🔌 [API] Sending game history to: $_baseUrl/game/history');
+      print('🔌 [API] Headers: ${_getHeaders()}');
+      print('🔌 [API] Body: $gameData');
+      
       final response = await http.post(
         Uri.parse('$_baseUrl/game/history'),
         headers: _getHeaders(),
         body: jsonEncode(gameData),
-      );
+      ).timeout(const Duration(seconds: 30), onTimeout: () {
+        throw Exception('Request timeout - server took too long to respond');
+      });
 
+      print('🔌 [API] Response Status: ${response.statusCode}');
+      print('🔌 [API] Response Body: ${response.body}');
+      
       final data = jsonDecode(response.body);
       
       if (response.statusCode == 201 && data['success']) {
+        print('✅ [API] Game history saved successfully');
         return data;
       } else {
-        throw Exception(data['message'] ?? 'Failed to save game history');
+        final message = data['message'] ?? 'Failed to save game history';
+        print('❌ [API] Error: $message (Status: ${response.statusCode})');
+        throw Exception(message);
       }
     } catch (e) {
+      print('❌ [API] Exception: $e');
       throw Exception('Save game error: $e');
     }
   }

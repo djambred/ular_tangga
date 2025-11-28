@@ -323,14 +323,17 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         score = (playerPosition * 10) + (completedQuizzes.length * 50);
       }
       
-      print('💾 Game Stats:');
+      print('═══════════════════════════════════════');
+      print('💾 GAME STATS - Before Save:');
       print('   Winner: $isWinner');
       print('   Level: ${widget.level}');
+      print('   Mode: ${widget.mode}');
       print('   Position: $playerPosition/$boardSize');
       print('   Quizzes: ${completedQuizzes.length}');
       print('   Time: $playTime seconds');
       print('   Moves: $moveCount');
       print('   Score: $score');
+      print('═══════════════════════════════════════');
       
       // Validation
       if (!isWinner) {
@@ -343,23 +346,28 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       final isLoggedIn = await _apiService.isLoggedIn();
       if (!isLoggedIn) {
         print('❌ User not logged in, game history not saved');
-        return;
+        throw Exception('User not logged in');
       }
       
       // Get user profile
+      print('📋 Fetching user profile...');
       final profile = await _apiService.getProfile();
+      print('📋 Profile response: $profile');
+      
       if (profile['success'] != true || profile['data'] == null) {
-        print('❌ Failed to get user profile');
-        return;
+        print('❌ Failed to get user profile: $profile');
+        throw Exception('Failed to get user profile');
       }
       
       final userData = profile['data'] as Map<String, dynamic>;
       final userId = userData['_id'] ?? userData['id'];
       
-      if (userId == null) {
-        print('❌ No userId found in profile');
-        return;
+      if (userId == null || userId.isEmpty) {
+        print('❌ No valid userId found in profile: $_id=$userId');
+        throw Exception('Invalid userId');
       }
+      
+      print('✅ UserId validated: $userId');
       
       // Prepare game history data
       final Map<String, dynamic> gameData = {
@@ -368,7 +376,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         'players': [
           {
             'userId': userId,
-            'username': userData['username'],
+            'username': userData['username'] ?? 'Unknown',
             'finalPosition': playerPosition,
             'quizzesAnswered': completedQuizzes.length,
             'quizzesCorrect': completedQuizzes.length,
@@ -381,22 +389,32 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         'duration': playTime,
       };
       
-      print('📤 Saving game history: $gameData');
-      print('📤 Will trigger level unlock to ${widget.level + 1} if win');
+      print('─────────────────────────────────────');
+      print('📤 SAVING GAME HISTORY:');
+      print('   GameMode: ${gameData['gameMode']}');
+      print('   Level: ${gameData['level']}');
+      print('   UserId: $userId');
+      print('   Score: $score');
+      print('   Winner: $isWinner');
+      print('   Full Data: $gameData');
+      print('─────────────────────────────────────');
       
       // Save to backend
       final result = await _apiService.saveGameHistory(gameData);
+      
       if (result['success'] == true) {
-        print('✅ Game history saved successfully');
-        print('   Mode: ${gameData['gameMode']}, Level: ${gameData['level']}, Score: $score');
+        print('✅ SUCCESS! Game history saved');
+        print('   Server response: $result');
         if (isWinner) {
-          print('   ✅ Level ${widget.level + 1} should now be unlocked!');
+          print('   🎉 Level ${widget.level + 1} should now be unlocked!');
         }
       } else {
-        print('❌ Failed to save game history: ${result['message']}');
+        print('❌ Save failed: ${result['message']}');
+        throw Exception(result['message'] ?? 'Unknown error');
       }
     } catch (e) {
-      print('❌ Error saving game history: $e');
+      print('❌ ERROR SAVING GAME HISTORY: $e');
+      print('   Stack trace: ${StackTrace.current}');
       rethrow; // Let caller handle the error
     }
   }
@@ -545,11 +563,37 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _showDiceResultDialog(int diceResult) {
+    bool moveTriggered = false;
+    bool timerScheduled = false;
+
+    void triggerMove(BuildContext dialogContext) {
+      if (moveTriggered || !mounted) return;
+      moveTriggered = true;
+      try {
+        Navigator.of(dialogContext).pop();
+      } catch (e) {
+        print('⚠️ Dice dialog close error: $e');
+      }
+      if (mounted) {
+        _bounceController.forward(from: 0);
+        _movePlayer(diceResult);
+      }
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) {
-        return Dialog(
+      builder: (BuildContext dialogContext) {
+        if (!timerScheduled) {
+          timerScheduled = true;
+          Future.delayed(const Duration(milliseconds: 1200), () {
+            triggerMove(dialogContext);
+          });
+        }
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => triggerMove(dialogContext),
+          child: Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
@@ -653,39 +697,34 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   ),
                 ),
                 const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      _bounceController.forward(from: 0);
-                      _movePlayer(diceResult);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade600,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.green.shade600),
+                        strokeWidth: 3,
                       ),
-                      elevation: 8,
-                      shadowColor: Colors.green.withOpacity(0.5),
                     ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.play_arrow_rounded, size: 28),
-                        SizedBox(width: 8),
-                        Text(
-                          'JALANKAN',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ],
+                    const SizedBox(width: 12),
+                    Text(
+                      'Pion bergerak otomatis...',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.green.shade700,
+                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Sentuh layar untuk mempercepat',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
                   ),
                 ),
               ],
@@ -2055,9 +2094,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _handleExit() async {
-    // Pause the game timer during dialog
-    final wasPaused = isTimeUp;
+    // Pause the game timer during dialog and remember previous state
+    final bool wasTimerActive = gameTimer != null && !isTimeUp && winner == null;
     gameTimer?.cancel();
+    gameTimer = null;
     
     final shouldExit = await showDialog<bool>(
       context: context,
@@ -2231,15 +2271,19 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
 
     if (shouldExit == true) {
-      // Save game as loss before exiting
-      await _saveGameHistory(isWinner: false);
+      // Save game as loss before exiting (ignore failures so player can still exit)
+      try {
+        await _saveGameHistory(isWinner: false);
+      } catch (e) {
+        print('⚠️ Failed to save game history on exit: $e');
+      }
       
       if (mounted) {
         Navigator.of(context).pop(true); // Return with refresh signal
       }
     } else {
       // Resume timer if not exiting and game not over
-      if (!wasPaused && !isTimeUp && winner == null) {
+      if (wasTimerActive && !isTimeUp && winner == null && mounted) {
         _startTimer();
       }
     }
