@@ -4,7 +4,7 @@ import 'mode_selection_screen.dart';
 import 'multiplayer/lobby_screen.dart';
 
 class LevelSelectionScreen extends StatefulWidget {
-  const LevelSelectionScreen({Key? key}) : super(key: key);
+  const LevelSelectionScreen({super.key});
 
   @override
   State<LevelSelectionScreen> createState() => _LevelSelectionScreenState();

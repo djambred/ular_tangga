@@ -15,17 +15,22 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
   
+  // Keys for screens that need refresh
+  final GlobalKey<State<HomeScreen>> _homeKey = GlobalKey();
+  final GlobalKey<State<ProfileScreen>> _profileKey = GlobalKey();
+  final GlobalKey<State<LevelSelectionScreen>> _levelKey = GlobalKey();
+  
   late final List<Widget> _screens;
   
   @override
   void initState() {
     super.initState();
     _screens = [
-      const HomeScreen(),
+      HomeScreen(key: _homeKey),
       const InfoScreen(),
-      const LevelSelectionScreen(),
+      LevelSelectionScreen(key: _levelKey),
       const LeaderboardScreen(),
-      const ProfileScreen(),
+      ProfileScreen(key: _profileKey),
     ];
   }
 
@@ -103,6 +108,21 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               setState(() {
                 _currentIndex = index;
               });
+              
+              // Refresh data when switching to Home or Profile tab
+              if (index == 0) {
+                // Home screen - trigger refresh
+                final homeState = _homeKey.currentState;
+                if (homeState != null && homeState is State<HomeScreen>) {
+                  (homeState as dynamic).loadUserData();
+                }
+              } else if (index == 4) {
+                // Profile screen - trigger refresh
+                final profileState = _profileKey.currentState;
+                if (profileState != null && profileState is State<ProfileScreen>) {
+                  (profileState as dynamic).loadProfile();
+                }
+              }
             },
             type: BottomNavigationBarType.fixed,
             selectedItemColor: Colors.blue.shade700,

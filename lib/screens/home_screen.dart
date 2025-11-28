@@ -4,7 +4,7 @@ import 'auth_screen.dart';
 import 'dart:math';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -33,6 +33,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
     
+    _loadUserData();
+  }
+  
+  // Public method for external refresh trigger
+  void loadUserData() {
     _loadUserData();
   }
 
