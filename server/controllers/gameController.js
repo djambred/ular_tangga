@@ -10,6 +10,7 @@ exports.saveGameHistory = async (req, res) => {
     for (const player of req.body.players) {
       if (player.userId) {
         const playerScore = player.score || 0;
+        const currentLevel = req.body.level;
         
         const updateData = {
           $inc: {
@@ -33,16 +34,19 @@ exports.saveGameHistory = async (req, res) => {
         
         // Only unlock next level if player wins
         if (player.isWinner) {
-          // Unlock next level (current level + 1)
-          const nextLevel = req.body.level + 1;
+          // Unlock next level - player can access level after current level
+          const nextLevel = currentLevel + 1;
           maxUpdate['statistics.highestLevel'] = nextLevel;
+          console.log(`✅ Unlock level: ${nextLevel} (player won level ${currentLevel})`);
         }
         
         if (Object.keys(maxUpdate).length > 0) {
           updateData.$max = maxUpdate;
         }
         
-        await User.findByIdAndUpdate(player.userId, updateData);
+        console.log(`📊 Updating player ${player.userId}:`, JSON.stringify(updateData, null, 2));
+        const result = await User.findByIdAndUpdate(player.userId, updateData, { new: true });
+        console.log(`✅ Updated stats:`, result.statistics);
       }
     }
 

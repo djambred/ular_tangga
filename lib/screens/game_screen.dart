@@ -317,55 +317,87 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         if (moveCount > 0) {
           score += (1000 / moveCount).round();
         }
+      } else {
+        // Partial score for not winning
+        // Base on progress and quizzes completed
+        score = (playerPosition * 10) + (completedQuizzes.length * 50);
+      }
+      
+      print('💾 Game Stats:');
+      print('   Winner: $isWinner');
+      print('   Level: ${widget.level}');
+      print('   Position: $playerPosition/$boardSize');
+      print('   Quizzes: ${completedQuizzes.length}');
+      print('   Time: $playTime seconds');
+      print('   Moves: $moveCount');
+      print('   Score: $score');
+      
+      // Validation
+      if (!isWinner) {
+        print('⚠️ Player did not win, will not unlock level');
+      } else {
+        print('✅ Player won! Should unlock level: ${widget.level + 1}');
       }
       
       // Check if user is logged in
       final isLoggedIn = await _apiService.isLoggedIn();
       if (!isLoggedIn) {
-        print('User not logged in, game history not saved');
+        print('❌ User not logged in, game history not saved');
         return;
       }
       
       // Get user profile
       final profile = await _apiService.getProfile();
       if (profile['success'] != true || profile['data'] == null) {
-        print('Failed to get user profile');
+        print('❌ Failed to get user profile');
         return;
       }
       
       final userData = profile['data'] as Map<String, dynamic>;
+      final userId = userData['_id'] ?? userData['id'];
       
-      // Prepare game history data with userId
+      if (userId == null) {
+        print('❌ No userId found in profile');
+        return;
+      }
+      
+      // Prepare game history data
       final Map<String, dynamic> gameData = {
-        'gameMode': 'single',
-        'level': widget.requiredQuizzes,
+        'gameMode': widget.mode, // Use actual mode: 'single' or 'multiplayer'
+        'level': widget.level,  // Use actual level number
         'players': [
           {
-            'userId': userData['_id'], // IMPORTANT: Add userId for server to update stats
+            'userId': userId,
             'username': userData['username'],
             'finalPosition': playerPosition,
             'quizzesAnswered': completedQuizzes.length,
             'quizzesCorrect': completedQuizzes.length,
             'isWinner': isWinner,
             'playTime': playTime,
-            'score': score, // Add calculated score
+            'score': score,
           }
         ],
         'quizzes': completedQuizzes.toList(),
         'duration': playTime,
       };
       
+      print('📤 Saving game history: $gameData');
+      print('📤 Will trigger level unlock to ${widget.level + 1} if win');
+      
       // Save to backend
       final result = await _apiService.saveGameHistory(gameData);
       if (result['success'] == true) {
-        print('✅ Game history saved successfully with score: $score');
-        print('✅ Level ${widget.requiredQuizzes} completed, should unlock level ${widget.requiredQuizzes + 1}');
+        print('✅ Game history saved successfully');
+        print('   Mode: ${gameData['gameMode']}, Level: ${gameData['level']}, Score: $score');
+        if (isWinner) {
+          print('   ✅ Level ${widget.level + 1} should now be unlocked!');
+        }
       } else {
         print('❌ Failed to save game history: ${result['message']}');
       }
     } catch (e) {
       print('❌ Error saving game history: $e');
-      // Don't show error to user, just log it
+      rethrow; // Let caller handle the error
     }
   }
 
